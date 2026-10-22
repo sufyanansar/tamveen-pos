@@ -385,3 +385,5 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
 .bc .nm{font-weight:600;font-size:14px}
 .bc .cd{font-family:ui-monospace,Menlo,monospace;letter-spacing:.12em;text-align:center;color:#1b2b26}
 @media print{body.print-sheet *{visibility:visible}body.print-sheet .side,body.print-sheet .topbar,body.print-sheet .demo-fab,body.print-sheet .noprint{display:none!important}}
+/* Desktop tills use a hardware barcode reader; the camera button is only for phones and tablets. */
+@media (hover:hover) and (pointer:fine){.cam-btn{display:none!important}}
