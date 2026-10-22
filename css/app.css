@@ -353,8 +353,8 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
 }
 
 /* ---------- camera scanner ---------- */
-.cam-btn{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--soft);color:var(--green);font-weight:600;font-size:13px;flex:none}
-.cam-btn:hover{border-color:var(--green)}
+.cam-btn{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 14px;border-radius:12px;border:0;background:var(--lime);color:var(--green);font-weight:700;font-size:13.5px;flex:none}
+.cam-btn:hover{background:var(--lime-2)}
 .cam-btn.sm{height:36px;width:36px;padding:0;justify-content:center;border-radius:10px}
 .scan{padding-inline-end:8px}
 .cam-open{overflow:hidden}
@@ -377,7 +377,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
 .cam-bar{display:flex;gap:10px;align-items:center;padding:12px 20px calc(12px + env(safe-area-inset-bottom));background:#06231e}
 .cam-bar .btn.ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.35)}
 .cam-bar .btn.ghost.on{background:var(--lime);color:var(--green);border-color:var(--lime)}
-@media(max-width:700px){.cam-btn span{display:none}.cam-btn{width:40px;padding:0;justify-content:center}}
+
 
 .bc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
 .bc{border:1px solid var(--line);border-radius:16px;padding:14px;background:#fff;display:flex;flex-direction:column;gap:6px;break-inside:avoid}

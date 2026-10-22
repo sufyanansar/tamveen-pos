@@ -339,7 +339,7 @@
       <div class="co-left">
         <div class="scanrow">
           <label class="field"><span class="eyebrow">${t('Barcode')}</span>
-            <form class="scan" data-form="scan">${I.barcode}<input id="scan" name="code" placeholder="${t('Ready to scan')}" autocomplete="off" data-k="scan" aria-label="${t('Barcode')}"><span class="hint">${t('Auto-focus on')}</span><button type="button" class="cam-btn" data-a="camera" title="${t('Scan with camera')}" aria-label="${t('Scan with camera')}">${I.camera}<span>${t('Camera')}</span></button></form></label>
+            <form class="scan" data-form="scan">${I.barcode}<input id="scan" name="code" placeholder="${t('Ready to scan')}" autocomplete="off" data-k="scan" aria-label="${t('Barcode')}"><span class="hint">${t('Auto-focus on')}</span><button type="button" class="cam-btn" data-a="camera" title="${t('Scan with camera')}" aria-label="${t('Scan with camera')}">${I.camera}<span>${t('Scan with camera')}</span></button></form></label>
           <label class="field"><span class="eyebrow">${t('Search')}</span>
             <div class="search">${I.search}<input data-in="q" data-k="q" value="${esc(ui.q)}" placeholder="${t('Name (عربي / English), SKU or barcode')}"></div></label>
         </div>
