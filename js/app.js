@@ -20,7 +20,7 @@
   let db = load();
   const ui = {
     cart: loadCart(), cat: 'fav', q: '', modal: null, demoOpen: false, toasts: [],
-    pay: null, form: null, lastInvoice: null, invFilter: 'all', invQ: '', prodQ: '', prodCat: 'all',
+    pay: null, form: null, lastInvoice: null, sel: null, nextQty: '1', invFilter: 'all', invQ: '', prodQ: '', prodCat: 'all',
     custTab: 'unpaid', payForm: null, ret: null, custQ: '', notifiedOffline: false,
     demo: { server: true, internet: true, printer: true, terminal: true },
   };
@@ -108,8 +108,8 @@
     if (p.stock <= 0) return toast(t('{n} is out of stock.', { n: N(p) }), 'bad');
     if (inCart + qty > p.stock) toast(t('Only {s} of {n} in stock.', { s: qtyFmt(p.stock, p.weighted), n: N(p) }), 'warn');
     const existing = !p.weighted && ui.cart.lines.find((l) => l.pid === pid && !l.discount);
-    if (existing) existing.qty = r2(existing.qty + qty);
-    else ui.cart.lines.unshift({ pid, en: p.en, ar: p.ar, unit: p.unit, price: p.price, qty, vat: p.vat, weighted: p.weighted, discount: 0, reason: '' });
+    if (existing) { existing.qty = r2(existing.qty + qty); ui.sel = ui.cart.lines.indexOf(existing); }
+    else { ui.cart.lines.push({ pid, en: p.en, ar: p.ar, unit: p.unit, price: p.price, qty, vat: p.vat, weighted: p.weighted, discount: 0, reason: '' }); ui.sel = ui.cart.lines.length - 1; }
     if (!opts.silent) toast(t('Added {n}', { n: `<b>${esc(N(p))}</b> × ${qtyFmt(qty, p.weighted)}` }));
     save();
   }
@@ -181,7 +181,7 @@
         <div class="shopinfo"><b>${esc(isAr() ? db.settings.shopAr : db.settings.shopEn)} · ${esc(isAr() ? db.settings.branchAr : db.settings.branch)}</b>
           <div>${esc(isAr() ? u.nameAr : u.name)} · ${t(cap(u.role))}${shift ? ' · ' + shift : ''}</div></div>
         <span class="spacer"></span>
-        <div class="chips">${chips()}
+        <div class="chips">${chips()}<button class="chip keep" data-a="demo-toggle" aria-expanded="${ui.demoOpen}">${I.flask}${t('Demo controls')}</button>
           <button class="btn sm ghost keep" data-a="sync">${I.sync}${t('Sync now')}</button>
           <button class="btn sm ghost keep" data-a="lang">${isAr() ? 'English' : 'العربية'}</button>
         </div>
@@ -287,68 +287,112 @@
       <span class="f"><span class="p num">${money(p.price)}${p.weighted ? ' /kg' : ''}</span>${stockTxt}</span></button>`;
   }
 
-  function billPanel() {
-    const c = calc(ui.cart.lines);
-    const cu = cust(ui.cart.customerId);
-    const lines = ui.cart.lines.map((l, i) => {
-      const p = prod(l.pid);
-      const changed = p && p.price !== l.price;
-      return `<div class="line">
-        <div><div class="n">${esc(N(l))}</div><div class="u">${l.weighted ? t('Weighed') + ' · ' + money(l.price) + ' /kg' : t(cap(l.unit)) + ' · ' + money(l.price)}</div></div>
-        <div class="qty"><button data-a="qty" data-i="${i}" data-d="-1" aria-label="${t('Decrease')}">−</button>
-          <input data-in="qty" data-i="${i}" data-k="qty${i}" value="${qtyFmt(l.qty, l.weighted)}" inputmode="decimal" aria-label="${t('Quantity')}">
-          <button data-a="qty" data-i="${i}" data-d="1" aria-label="${t('Increase')}">+</button></div>
-        <div class="tot num">${l.discount ? `<s>${money(l.price * l.qty)}</s>` : ''}${money(lineTotal(l))}</div>
-        <div class="acts">
-          ${l.discount ? `<span class="tag lime">−${money(l.discount)} · ${esc(t(l.reason))} · ${t('approved')}</span>` : `<button class="linkbtn" data-a="discount" data-i="${i}">${t('Discount')}</button>`}
-          ${changed ? `<span class="tag amber">${t('Shelf price now {p}', { p: money(p.price) })}</span>` : ''}
-          <span class="spacer"></span><button class="linkbtn red" data-a="remove" data-i="${i}">${t('Remove')}</button>
-        </div></div>`;
-    }).join('');
-    return `<aside class="bill" aria-label="${t('Bill')}">
-      <div class="custbox"><div class="ic">${I.user}</div><div class="t"><small>${t('Step 1 · Customer')}</small><b>${cu ? esc(N(cu)) : t('Walk-in customer')}</b>
-        ${cu && cu.credit ? `<small>${t('Credit available {a} SAR', { a: money(creditAvailable(cu)) })}</small>` : ''}</div>
-        ${cu ? `<button class="linkbtn" data-a="cust-clear">${t('Clear')}</button>` : ''}
-        <button class="btn sm" data-a="cust-pick">${cu ? t('Change') : t('Select or create')}</button></div>
-      <div class="between"><h2>${t('Bill · draft')}</h2><span class="small muted">${t('{l} lines · {i} items', { l: c.count, i: r2(c.items) })}</span></div>
-      ${ui.cart.orderId ? `<div class="tag outline">${t('From order {o}', { o: ui.cart.orderId })}</div>` : ''}
-      <div class="lines">${lines || `<div class="empty">${t('Scan a barcode or tap a product to start the bill.')}</div>`}</div>
-      <div class="totals num">
-        <div class="between"><span>${t('Items (incl. VAT)')}</span><span>${money(c.gross)}</span></div>
-        ${c.disc ? `<div class="between"><span>${t('Discounts')}</span><span>−${money(c.disc)}</span></div>` : ''}
-        <hr><div class="between"><span>${t('Net before VAT')}</span><span>${money(c.net)}</span></div>
-        <div class="between"><span>${t('VAT 15% (already included)')}</span><span>${money(c.vat)}</span></div>
-        <hr><div class="between due"><span>${t('Total due')}</span><b>${money(c.total)}<small>${SAR()}</small></b></div>
-      </div>
-      <div class="acts2"><button class="btn" data-a="hold" ${c.count ? '' : 'disabled'}>${t('Hold')}</button><button class="btn ghost" data-a="clear" ${c.count ? '' : 'disabled'}>${t('Clear draft')}</button></div>
-      <button class="btn primary xl" data-a="pay" ${c.count ? '' : 'disabled'}>${t('Pay {a} SAR', { a: money(c.total) })} ${arrow()}</button>
-    </aside>`;
-  }
-
-  function filteredProducts() {
-    const q = ui.q.trim().toLowerCase();
+  function filteredProducts(q, catId) {
+    q = (q || '').trim().toLowerCase();
     return db.products.filter((p) => p.active && (q
       ? (p.en.toLowerCase().includes(q) || p.ar.includes(q) || p.sku.toLowerCase().includes(q) || p.packs.some((k) => k.barcode.includes(q)))
-      : ui.cat === 'fav' ? p.fav : p.cat === ui.cat));
+      : catId === 'fav' ? p.fav : p.cat === catId));
+  }
+
+  // Bill table on the left: every line the cashier and customer need to see as items are added.
+  function billTable() {
+    const c = calc(ui.cart.lines);
+    const cu = cust(ui.cart.customerId);
+    const rows = ui.cart.lines.map((l, i) => {
+      const net = lineTotal(l), rate = vatRate(l.vat), vat = r2(net - net / (1 + rate));
+      const p = prod(l.pid), changed = p && p.price !== l.price;
+      return `<tr class="${i === ui.sel ? 'on' : ''}" data-a="sel" data-i="${i}">
+        <td class="num c">${i + 1}</td>
+        <td class="num c"><b>${qtyFmt(l.qty, l.weighted)}</b></td>
+        <td><div class="pn">${esc(N(l))}</div><div class="pa">${esc(N2(l))}</div>
+          ${l.discount ? `<span class="tag lime">−${money(l.discount)} · ${esc(t(l.reason))}</span>` : ''}${changed ? `<span class="tag amber">${t('Shelf price now {p}', { p: money(p.price) })}</span>` : ''}</td>
+        <td class="r num">${money(l.price)}</td>
+        <td class="r num">${money(vat)}</td>
+        <td class="r num">${money(r2(net - vat))}</td>
+        <td class="r num"><b>${money(net)}</b></td></tr>`;
+    }).join('');
+    return `<section class="pos-bill" aria-label="${t('Bill')}">
+      <div class="pos-head">
+        <button class="pos-cust" data-a="cust-pick"><span class="ic">${I.user}</span><span><small>${t('Customer')} · F2</small><b>${cu ? esc(N(cu)) : t('Walk-in customer')}</b>${cu && cu.credit ? `<small>${t('Credit available {a} SAR', { a: money(creditAvailable(cu)) })}</small>` : ''}</span></button>
+        ${cu ? `<button class="linkbtn" data-a="cust-clear">${t('Clear')}</button>` : ''}
+        <span class="spacer"></span>
+        <div class="pos-meta"><b>${t('Bill · draft')}</b><span>${t('{l} lines · {i} items', { l: c.count, i: r2(c.items) })}</span>${ui.cart.orderId ? `<span class="tag outline">${t('From order {o}', { o: ui.cart.orderId })}</span>` : ''}</div>
+      </div>
+      <div class="btable-wrap" id="btable">
+        <table class="btable"><thead><tr><th class="c">#</th><th class="c">${t('Qty')}</th><th>${t('Product')}</th><th class="r">${t('Price')}</th><th class="r">${t('Tax')}</th><th class="r">${t('Net amount')}</th><th class="r">${t('Total')}</th></tr></thead>
+        <tbody>${rows || `<tr class="empty-row"><td colspan="7">${t('Scan a barcode to start the bill.')}</td></tr>`}</tbody></table>
+      </div>
+      <div class="pos-foot">
+        <div class="pos-total"><span>${t('Total')}</span><b class="num">${money(c.total)} <small>${SAR()}</small></b></div>
+        <div class="pos-btns">
+          <button class="btn primary" data-a="pay" ${c.count ? '' : 'disabled'}>${t('Settle')} <kbd>F5</kbd></button>
+          <button class="btn" data-a="hold" ${c.count ? '' : 'disabled'}>${t('Hold')} <kbd>F4</kbd></button>
+          <button class="btn ghost" data-a="clear" ${c.count ? '' : 'disabled'}>${t('Clear')}</button>
+        </div>
+      </div>
+    </section>`;
+  }
+
+  // Item panel on the right: the line just scanned (or selected), big enough for the customer to read.
+  function itemPanel() {
+    const c = calc(ui.cart.lines);
+    const l = ui.cart.lines[ui.sel];
+    let body;
+    if (!l) {
+      body = `<div class="item-empty"><div class="item-name">${t('Ready to scan')}</div>
+        <p>${t('Scan a product with the barcode reader. Its details show here and it is added to the bill.')}</p>
+        <p class="small">${t('Try scanning')} <button class="linkbtn" data-a="demo-scan" data-code="6281000001011">6281000001011</button> · <button class="linkbtn" data-a="demo-scan" data-code="2100006012507">2100006012507</button> ${t('(scale label, 1.250 kg)')} · <a href="#/barcodes">${t('Test barcode sheet')}</a></p></div>`;
+    } else {
+      const p = prod(l.pid);
+      const gross = r2(l.price * l.qty), net = lineTotal(l), rate = vatRate(l.vat), vat = r2(net - net / (1 + rate));
+      const inCart = ui.cart.lines.filter((x) => x.pid === l.pid).reduce((a, x) => a + x.qty, 0);
+      const kv = (k, v, cls = '') => `<div class="kv ${cls}"><span>${t(k)}</span><b class="num">${v}</b></div>`;
+      body = `<div class="item-name">${esc(N(l))}</div><div class="item-sub">${esc(N2(l))}</div>
+        <div class="item-grid">
+          <div>${kv('Sale price', money(l.price) + (l.weighted ? ' /kg' : ''))}${kv('Quantity', qtyFmt(l.qty, l.weighted) + ' ' + esc(t(l.weighted ? 'kg' : cap(l.unit))))}
+            ${kv('Tax %', (rate * 100).toFixed(0) + '%')}${kv('Category', p ? esc(N(cat(p.cat))) : '—')}${kv('Stock', p ? qtyFmt(r2(p.stock - inCart), p.weighted) : '—')}</div>
+          <div>${kv('Total amount', money(gross))}${kv('Discount', l.discount ? '−' + money(l.discount) : '0.00')}${kv('Sub total', money(r2(net - vat)))}${kv('Tax amount', money(vat))}${kv('Product total', money(net), 'strong')}</div>
+        </div>
+        <div class="item-acts">
+          <div class="qty"><button data-a="qty" data-i="${ui.sel}" data-d="-1" aria-label="${t('Decrease')}">−</button>
+            <input data-in="qty" data-i="${ui.sel}" data-k="qty${ui.sel}" value="${qtyFmt(l.qty, l.weighted)}" inputmode="decimal" aria-label="${t('Quantity')}">
+            <button data-a="qty" data-i="${ui.sel}" data-d="1" aria-label="${t('Increase')}">+</button></div>
+          ${l.discount ? '' : `<button class="btn sm" data-a="discount" data-i="${ui.sel}">${t('Discount')}</button>`}
+          <button class="btn sm danger" data-a="remove" data-i="${ui.sel}">${t('Remove')}</button>
+        </div>`;
+    }
+    return `<section class="pos-item">
+      <form class="pos-scan" data-form="scan">
+        <label class="nq" title="${t('Quantity for the next scan')}"><span>${t('Qty')}</span><input name="nq" data-in="nextqty" data-k="nextqty" value="${esc(ui.nextQty)}" inputmode="decimal" aria-label="${t('Quantity for the next scan')}"></label>
+        <div class="scan">${I.barcode}<input id="scan" name="code" placeholder="${t('Ready to scan')}" autocomplete="off" data-k="scan" aria-label="${t('Barcode')}"><button type="button" class="cam-btn" data-a="camera" title="${t('Scan with camera')}" aria-label="${t('Scan with camera')}">${I.camera}<span>${t('Scan with camera')}</span></button></div>
+        <button type="submit" hidden></button>
+        <button type="button" class="btn ghost find" data-a="browse">${I.search}<span>${t('Find product')}</span> <kbd>F3</kbd></button>
+      </form>
+      <div class="item-card">${body}</div>
+      <div class="inv-amt num">
+        <div class="eyebrow">${t('Invoice amount')}</div>
+        <div class="between"><span>${t('Invoice amount (excl. VAT)')}</span><span>${money(c.net)}</span></div>
+        ${c.disc ? `<div class="between"><span>${t('Discounts')}</span><span>−${money(c.disc)}</span></div>` : ''}
+        <div class="between"><span>${t('Tax amount')}</span><span>${money(c.vat)}</span></div>
+      </div>
+      <div class="grand num" aria-live="polite">${money(c.total)} <small>${SAR()}</small></div>
+    </section>`;
   }
 
   function viewCheckout() {
-    const cats = db.categories.map((c) => `<button class="pill ${ui.cat === c.id && !ui.q ? 'on' : ''}" data-a="cat" data-id="${c.id}">${esc(N(c))}</button>`).join('');
-    const list = filteredProducts();
-    return `<div class="co">
-      <div class="co-left">
-        <div class="scanrow">
-          <label class="field"><span class="eyebrow">${t('Barcode')}</span>
-            <form class="scan" data-form="scan">${I.barcode}<input id="scan" name="code" placeholder="${t('Ready to scan')}" autocomplete="off" data-k="scan" aria-label="${t('Barcode')}"><span class="hint">${t('Auto-focus on')}</span><button type="button" class="cam-btn" data-a="camera" title="${t('Scan with camera')}" aria-label="${t('Scan with camera')}">${I.camera}<span>${t('Scan with camera')}</span></button></form></label>
-          <label class="field"><span class="eyebrow">${t('Search')}</span>
-            <div class="search">${I.search}<input data-in="q" data-k="q" value="${esc(ui.q)}" placeholder="${t('Name (عربي / English), SKU or barcode')}"></div></label>
-        </div>
-        <div class="cats">${cats}</div>
-        <div class="pgrid" id="pgrid">${list.map(productCard).join('') || `<div class="empty">${t('No products match.')}</div>`}</div>
-        <p class="foot-note">${t('Prices shown include VAT where it applies. Pack size and stock help tell similar items apart.')} ${t('Try scanning')} <button class="linkbtn" data-a="demo-scan" data-code="6281000001011">6281000001011</button> · <button class="linkbtn" data-a="demo-scan" data-code="2100006012507">2100006012507</button> ${t('(scale label, 1.250 kg)')} · <a href="#/barcodes">${t('Test barcode sheet')}</a></p>
-      </div>
-      ${billPanel()}
-    </div>`;
+    if (ui.sel == null || ui.sel >= ui.cart.lines.length) ui.sel = ui.cart.lines.length - 1;
+    setTimeout(() => { const w = $('#btable'), r = w && w.querySelector('tr.on'); if (r) r.scrollIntoView({ block: 'nearest' }); });
+    return `<div class="pos">${billTable()}${itemPanel()}</div>`;
+  }
+
+  function browseBody(m) {
+    const cats = db.categories.map((c) => `<button class="pill ${m.cat === c.id && !m.q ? 'on' : ''}" data-a="browse-cat" data-id="${c.id}">${esc(N(c))}</button>`).join('');
+    const list = filteredProducts(m.q, m.cat);
+    return `<div class="between"><h3>${t('Find product')}</h3><button class="btn sm" data-a="close">${t('Done')}</button></div>
+      <div class="search" style="height:48px">${I.search}<input data-in="browse-q" data-k="browseq" value="${esc(m.q || '')}" placeholder="${t('Name (عربي / English), SKU or barcode')}" autofocus></div>
+      <div class="cats">${cats}</div>
+      <div class="pgrid">${list.map(productCard).join('') || `<div class="empty">${t('No products match.')}</div>`}</div>
+      <p class="small muted" style="margin:0">${t('Prices shown include VAT where it applies. Pack size and stock help tell similar items apart.')}</p>`;
   }
 
   function creditAvailable(c) {
@@ -1000,7 +1044,7 @@
     if (!el) { el = document.createElement('div'); el.id = 'modal-root'; document.body.appendChild(el); }
     const m = ui.modal;
     if (!m) { el.innerHTML = ''; return; }
-    el.innerHTML = `<div class="overlay" data-a="overlay"><div class="modal ${m.wide ? 'wide' : ''} ${m.kind === 'price-changed' ? 'limebg' : ''}" role="dialog" aria-modal="true">${modalBody(m)}</div></div>`;
+    el.innerHTML = `<div class="overlay" data-a="overlay"><div class="modal ${m.xwide ? 'xwide' : m.wide ? 'wide' : ''} ${m.kind === 'price-changed' ? 'limebg' : ''}" role="dialog" aria-modal="true">${modalBody(m)}</div></div>`;
     const f = el.querySelector('[autofocus]'); if (f) f.focus();
   }
   const badge = (txt, cls) => `<span class="tag ${cls}" style="align-self:flex-start">${t(txt)}</span>`;
@@ -1011,6 +1055,7 @@
   }
   function modalBody(m) {
     switch (m.kind) {
+      case 'browse': return browseBody(m);
       case 'pin-unlock': return `${badge('Registered device', 'lime')}<h3>${t('Enter your PIN')}</h3><p>${t('Cashier 1111 · Manager 1234 · Owner 9999')}</p>${pinPad(m)}<div class="btns one"><button class="btn" data-a="close">${t('Cancel')}</button></div>`;
       case 'approve': return `${badge('Manager approval', 'lime')}<h3>${t('Approve this discount')}</h3>
         <div class="box"><div class="between"><b>${esc(N(m.line))}</b><b>−${money(m.amount)}</b></div><div class="small muted">${t('Reason: {r} · Bill total {a} → {b}', { r: esc(t(m.reason)), a: money(m.before), b: money(r2(m.before - m.amount)) })}</div></div>
@@ -1123,8 +1168,7 @@
   function demoPanel() {
     const d = ui.demo;
     const tg = (k, label) => `<label class="toggle"><span>${t(label)}</span><input type="checkbox" data-in="demo" data-f="${k}" ${d[k] ? 'checked' : ''}></label>`;
-    return `<button class="demo-fab" data-a="demo-toggle" aria-expanded="${ui.demoOpen}">${I.flask}${t('Demo controls')}</button>
-      ${ui.demoOpen ? `<div class="demo-panel"><h4>${t('Simulate shop conditions')}</h4>
+    return `${ui.demoOpen ? `<div class="demo-panel"><div class="between"><h4>${t('Simulate shop conditions')}</h4><button class="linkbtn" data-a="demo-toggle">${t('Close')}</button></div>
         ${tg('server', 'Shop server connected')}${tg('internet', 'Internet online')}${tg('printer', 'Printer has paper')}${tg('terminal', 'Card terminal replies')}
         <button class="btn sm ghost" data-a="demo-price">${t('Change a shelf price (Sugar +0.25)')}</button>
         <button class="btn sm ghost" data-a="reset">${t('Reset demo data')}</button>
@@ -1230,12 +1274,15 @@
     },
     'retry-conn': () => { if (ui.demo.server) { closeModal(); toast(t('Connected')); } else toast(t('Still unreachable. Your bill is safe on this device.'), 'bad'); },
     // checkout
-    cat: (el) => { ui.cat = el.dataset.id; ui.q = ''; render(); },
+    sel: (el) => { ui.sel = Number(el.dataset.i); render(); },
+    browse: () => openModal({ kind: 'browse', wide: true, xwide: true, q: '', cat: 'fav' }),
+    'browse-cat': (el) => { ui.modal.cat = el.dataset.id; ui.modal.q = ''; renderModal(); },
     add: (el) => {
       const p = prod(el.dataset.id);
       if (p.stock <= 0) return toast(t('{n} is out of stock.', { n: N(p) }), 'bad');
       if (p.weighted) return openModal({ kind: 'weigh', pid: p.id, w: '' });
-      addToCart(p.id, 1, { silent: true }); render();
+      addToCart(p.id, 1); render();
+      if (ui.modal && ui.modal.kind === 'browse') rerenderModalKeepFocus();
     },
     'demo-scan': (el) => { scan(el.dataset.code); },
     camera: () => cameraCheckout(),
@@ -1249,11 +1296,11 @@
     qty: (el) => {
       const l = ui.cart.lines[el.dataset.i]; const step = l.weighted ? 0.25 : 1;
       l.qty = r2(l.qty + step * Number(el.dataset.d));
-      if (l.qty <= 0) ui.cart.lines.splice(el.dataset.i, 1);
+      if (l.qty <= 0) { ui.cart.lines.splice(el.dataset.i, 1); ui.sel = ui.cart.lines.length - 1; }
       else if (l.discount && l.discount >= l.price * l.qty) { l.discount = 0; l.reason = ''; }
       save(); render();
     },
-    remove: (el) => { ui.cart.lines.splice(el.dataset.i, 1); save(); render(); },
+    remove: (el) => { ui.cart.lines.splice(el.dataset.i, 1); ui.sel = ui.cart.lines.length - 1; save(); render(); },
     discount: (el) => openModal({ kind: 'discount', i: Number(el.dataset.i), mode: 'amt', value: '', reason: '' }),
     'disc-mode': (el) => { ui.modal.mode = el.dataset.m; renderModal(); },
     'disc-reason': (el) => { ui.modal.reason = el.dataset.r; renderModal(); },
@@ -1364,7 +1411,8 @@
   };
 
   const inputs = {
-    q: (el) => { ui.q = el.value; render(); },
+    nextqty: (el) => { ui.nextQty = el.value.replace(/[^\d.]/g, ''); },
+    'browse-q': (el) => { ui.modal.q = el.value; rerenderModalKeepFocus(); },
     qty: (el) => { const l = ui.cart.lines[el.dataset.i]; const v = Number(el.value); if (el.value !== '' && v > 0 && !el.value.endsWith('.')) { l.qty = r2(v); save(); render(); } },
     received: (el) => { ui.pay.received = el.value.replace(/[^\d.]/g, ''); render(); },
     ref: (el) => { ui.pay.ref = el.value; render(); },
@@ -1411,7 +1459,9 @@
     const hit = findByBarcode(code);
     if (!hit) { toast(t('No product with barcode {c}', { c: esc(code) }), 'bad'); return; }
     if (hit.p.weighted && hit.qty === 1 && !/^21\d{11}$/.test(code)) { openModal({ kind: 'weigh', pid: hit.p.id, w: '' }); return; }
-    addToCart(hit.p.id, hit.qty);
+    const mult = Number(ui.nextQty) > 0 ? Number(ui.nextQty) : 1;
+    ui.nextQty = '1';
+    addToCart(hit.p.id, r2(hit.qty * mult), { silent: true });
     render();
   }
 
@@ -1470,6 +1520,12 @@
   });
   document.addEventListener('keydown', (ev) => {
     if (window.CameraScanner && CameraScanner.isOpen()) return;
+    if (!ui.modal && db.session && route()[0] === 'checkout' && /^F[2-5]$/.test(ev.key)) {
+      ev.preventDefault();
+      const a = { F2: 'cust-pick', F3: 'browse', F4: 'hold', F5: 'pay' }[ev.key];
+      const b = document.querySelector(`[data-a="${a}"]:not(:disabled)`); if (b) b.click();
+      return;
+    }
     if (ev.key === 'Escape' && ui.modal && ui.modal.kind !== 'terminal') closeModal();
     if (ui.modal && /^(pin-unlock|approve)$/.test(ui.modal.kind)) {
       if (/^\d$/.test(ev.key)) { const b = document.querySelector(`[data-a="pin-key"][data-k2="${ev.key}"]`); if (b) b.click(); }
