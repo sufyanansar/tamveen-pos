@@ -38,6 +38,7 @@
     if (vars) Object.keys(vars).forEach((k) => { out = out.split('{' + k + '}').join(vars[k]); });
     return out;
   };
+  window.TamveenT = t;
   const N = (o) => (o ? (isAr() ? (o.ar || o.en) : (o.en || o.ar)) : '');
   const N2 = (o) => (o ? (isAr() ? o.en : o.ar) : '');
   const SAR = () => (isAr() ? 'ر.س' : 'SAR');
@@ -73,6 +74,7 @@
     warn: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" style="flex:none"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg>',
     lock: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
     eye: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#536B62" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+    camera: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
     flask: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M9 3h6M10 3v6L4 20h16l-6-11V3"/></svg>',
   };
   const arrow = () => `<span class="arr" aria-hidden="true">${isAr() ? '←' : '→'}</span>`;
@@ -337,13 +339,13 @@
       <div class="co-left">
         <div class="scanrow">
           <label class="field"><span class="eyebrow">${t('Barcode')}</span>
-            <form class="scan" data-form="scan">${I.barcode}<input id="scan" name="code" placeholder="${t('Ready to scan')}" autocomplete="off" data-k="scan" aria-label="${t('Barcode')}"><span class="hint">${t('Auto-focus on')}</span></form></label>
+            <form class="scan" data-form="scan">${I.barcode}<input id="scan" name="code" placeholder="${t('Ready to scan')}" autocomplete="off" data-k="scan" aria-label="${t('Barcode')}"><span class="hint">${t('Auto-focus on')}</span><button type="button" class="cam-btn" data-a="camera" title="${t('Scan with camera')}" aria-label="${t('Scan with camera')}">${I.camera}<span>${t('Camera')}</span></button></form></label>
           <label class="field"><span class="eyebrow">${t('Search')}</span>
             <div class="search">${I.search}<input data-in="q" data-k="q" value="${esc(ui.q)}" placeholder="${t('Name (عربي / English), SKU or barcode')}"></div></label>
         </div>
         <div class="cats">${cats}</div>
         <div class="pgrid" id="pgrid">${list.map(productCard).join('') || `<div class="empty">${t('No products match.')}</div>`}</div>
-        <p class="foot-note">${t('Prices shown include VAT where it applies. Pack size and stock help tell similar items apart.')} ${t('Try scanning')} <button class="linkbtn" data-a="demo-scan" data-code="6281000000011">6281000000011</button> · <button class="linkbtn" data-a="demo-scan" data-code="2100006012500">2100006012500</button> ${t('(scale label, 1.250 kg)')}</p>
+        <p class="foot-note">${t('Prices shown include VAT where it applies. Pack size and stock help tell similar items apart.')} ${t('Try scanning')} <button class="linkbtn" data-a="demo-scan" data-code="6281000001011">6281000001011</button> · <button class="linkbtn" data-a="demo-scan" data-code="2100006012507">2100006012507</button> ${t('(scale label, 1.250 kg)')} · <a href="#/barcodes">${t('Test barcode sheet')}</a></p>
       </div>
       ${billPanel()}
     </div>`;
@@ -781,7 +783,7 @@
     const q = ui.prodQ.trim().toLowerCase();
     const list = db.products.filter((p) => (ui.prodCat === 'all' || p.cat === ui.prodCat) && (!q || p.en.toLowerCase().includes(q) || p.ar.includes(q) || p.sku.toLowerCase().includes(q) || p.packs.some((k) => k.barcode.includes(q))));
     return `<div class="page-h"><div><h1>${t('Products')}</h1><div class="sub">${t('{n} products · prices include VAT where it applies', { n: db.products.length })}</div></div>
-      <a class="btn primary" href="#/product/new" style="text-decoration:none">${t('Add product')}</a></div>
+      <div class="row"><a class="btn ghost" href="#/barcodes" style="text-decoration:none">${t('Test barcodes')}</a><a class="btn primary" href="#/product/new" style="text-decoration:none">${t('Add product')}</a></div></div>
       <div class="between" style="margin-bottom:14px;flex-wrap:wrap"><div class="tabs" style="margin:0"><button class="pill ${ui.prodCat === 'all' ? 'on' : ''}" data-a="prod-cat" data-id="all">${t('All')}</button>${db.categories.filter((c) => c.id !== 'fav').map((c) => `<button class="pill ${ui.prodCat === c.id ? 'on' : ''}" data-a="prod-cat" data-id="${c.id}">${esc(N(c))}</button>`).join('')}</div>
         <div class="search" style="height:44px;width:300px;max-width:100%">${I.search}<input data-in="prodq" data-k="prodq" value="${esc(ui.prodQ)}" placeholder="${t('Name, SKU or barcode')}"></div></div>
       <div class="tblwrap"><table class="tbl"><thead><tr><th>${t('Product')}</th><th>SKU</th><th>${t('Category')}</th><th>${t('VAT')}</th><th class="r">${t('Price')}</th><th class="r">${t('Stock')}</th><th>${t('Status')}</th></tr></thead>
@@ -826,7 +828,7 @@
           <span class="small muted">${k.base ? t('base unit, sold at checkout') : t('used for receiving')}</span></div>
           <div class="row" style="gap:6px"><span class="small">${k.base ? '1 ×' : t('1 {n} =', { n: esc(k.name) })}</span>${k.base ? `<span class="tag outline">${esc(F.unit)}</span>` : `<input value="${esc(k.qty)}" data-in="pk-qty" data-i="${i}" data-k="pkq${i}" style="width:60px" inputmode="numeric" aria-label="${t('Pieces per pack')}"><span class="small">${t('pieces')}</span>`}
           ${k.base ? '' : `<button class="linkbtn red" data-a="pk-del" data-i="${i}">${t('Remove')}</button>`}</div></div>
-        <div class="row small" style="margin-top:8px"><span class="muted">${t('Barcode')}</span><input value="${esc(k.barcode)}" data-in="pk-bc" data-i="${i}" data-k="pkb${i}" id="pkb${i}" style="width:180px" inputmode="numeric" placeholder="${t('Scan or type')}"></div>
+        <div class="row small" style="margin-top:8px"><span class="muted">${t('Barcode')}</span><input value="${esc(k.barcode)}" data-in="pk-bc" data-i="${i}" data-k="pkb${i}" id="pkb${i}" style="width:180px" inputmode="numeric" placeholder="${t('Scan or type')}"><button type="button" class="cam-btn sm" data-a="pk-cam" data-i="${i}" title="${t('Scan with camera')}" aria-label="${t('Scan with camera')}">${I.camera}</button></div>
         ${e && e.msg === 'dup' ? `<div class="errbox between" style="flex-wrap:wrap"><span class="row" style="gap:8px">${I.warn}<span>${t('This barcode is already assigned to {p}.', { p: `<b>${esc(N(prod(e.pid)))} · ${esc(t(e.pack))}</b>` })}</span></span>
           <span class="row"><button class="btn sm danger" data-a="open-prod" data-id="${e.pid}">${t('Open that product')}</button></span>
           <button class="linkbtn red" data-a="focus" data-target="pkb${i}" style="font-size:13.5px">${t('Enter a different barcode')}</button></div>` : e ? `<div class="errbox">${t(e.msg)}</div>` : ''}
@@ -892,6 +894,35 @@
     ui.form = null; save();
     toast(t(draft ? 'Saved as draft' : 'Product saved'));
     go('products');
+  }
+
+  // ---------------------------------------------------------------- views: test barcode sheet
+  function ean13Svg(code) {
+    const L = ['0001101', '0011001', '0010011', '0111101', '0100011', '0110001', '0101111', '0111011', '0110111', '0001011'];
+    const G = ['0100111', '0110011', '0011011', '0100001', '0011101', '0111001', '0000101', '0010001', '0001001', '0010111'];
+    const R = ['1110010', '1100110', '1101100', '1000010', '1011100', '1001110', '1010000', '1000100', '1001000', '1110100'];
+    const P = ['LLLLLL', 'LLGLGG', 'LLGGLG', 'LLGGGL', 'LGLLGG', 'LGGLLG', 'LGGGLL', 'LGLGLG', 'LGLGGL', 'LGGLGL'];
+    const d = code.split('').map(Number);
+    let bits = '101';
+    for (let i = 0; i < 6; i++) bits += (P[d[0]][i] === 'L' ? L : G)[d[i + 1]];
+    bits += '01010';
+    for (let i = 7; i < 13; i++) bits += R[d[i]];
+    bits += '101';
+    const q = 11, w = bits.length + q * 2;
+    let rects = '';
+    for (let i = 0; i < bits.length; i++) if (bits[i] === '1') rects += `<rect x="${i + q}" y="0" width="1" height="50"/>`;
+    return `<svg viewBox="0 0 ${w} 50" preserveAspectRatio="none" style="aspect-ratio:${w}/40" shape-rendering="crispEdges" aria-label="${code}">${rects}</svg>`;
+  }
+  const eanCheck = (d12) => d12 + ((10 - d12.split('').reduce((s, c, i) => s + Number(c) * (i % 2 ? 3 : 1), 0) % 10) % 10);
+  function viewBarcodes() {
+    const items = [];
+    db.products.filter((p) => p.active).forEach((p) => p.packs.forEach((k) => {
+      if (p.weighted) items.push({ p, label: t('Scale label · {w} kg', { w: '1.250' }), code: eanCheck(k.barcode.slice(0, 7) + '01250') });
+      else if (/^\d{13}$/.test(k.barcode)) items.push({ p, label: k.qty > 1 ? `${t(k.name)} · ${k.qty}` : t(k.name), code: k.barcode });
+    }));
+    return `<div class="page-h"><div><h1>${t('Test barcodes')}</h1><div class="sub">${t('Open this page on another screen or print it, then scan these with the camera at checkout.')}</div></div>
+      <button class="btn noprint" data-a="print-sheet">${I.print}${t('Print')}</button></div>
+      <div class="bc-grid">${items.map((x) => `<div class="bc"><span class="nm">${esc(N(x.p))}</span><span class="small muted">${esc(x.label)} · ${money(x.p.price)}${x.p.weighted ? ' /kg' : ''}</span>${ean13Svg(x.code)}<span class="cd">${x.code}</span></div>`).join('')}</div>`;
   }
 
   // ---------------------------------------------------------------- views: inventory / suppliers / reports / settings
@@ -1118,7 +1149,7 @@
       const views = {
         checkout: viewCheckout, pay: viewPay, done: () => viewDone(a), held: viewHeld, orders: viewOrders, invoices: viewInvoices, invoice: () => viewInvoice(a),
         returns: viewReturns, customers: viewCustomers, customer: () => viewCustomer(a), products: viewProducts, product: () => viewProduct(a),
-        inventory: viewInventory, suppliers: viewSuppliers, reports: viewReports, settings: viewSettings,
+        inventory: viewInventory, suppliers: viewSuppliers, barcodes: viewBarcodes, reports: viewReports, settings: viewSettings,
       };
       app.innerHTML = shell((views[r] || viewCheckout)());
       $('#demo-root').innerHTML = demoPanel();
@@ -1207,6 +1238,12 @@
       addToCart(p.id, 1, { silent: true }); render();
     },
     'demo-scan': (el) => { scan(el.dataset.code); },
+    camera: () => cameraCheckout(),
+    'print-sheet': () => { document.body.classList.add('print-sheet'); setTimeout(() => { window.print(); document.body.classList.remove('print-sheet'); }, 50); },
+    'pk-cam': (el) => {
+      const i = Number(el.dataset.i);
+      CameraScanner.open({ title: t('Scan the pack barcode'), onCode: (code) => { ui.form.packs[i].barcode = code.replace(/\s/g, ''); setTimeout(render); return { close: true }; } });
+    },
     'read-scale': () => { ui.modal.w = (0.4 + Math.random() * 1.6).toFixed(3); renderModal(); },
     'weigh-add': () => { addToCart(ui.modal.pid, r2(Number(ui.modal.w) * 1000) / 1000); closeModal(); render(); },
     qty: (el) => {
@@ -1378,6 +1415,25 @@
     render();
   }
 
+  // Continuous camera scanning at checkout: every read adds to the bill while the camera stays open.
+  function cameraCheckout() {
+    CameraScanner.open({
+      continuous: true, title: t('Scan products'),
+      onCode: (code) => {
+        const hit = findByBarcode(code);
+        if (!hit) return { ok: false, html: t('No product with barcode {c}', { c: esc(code) }) };
+        const p = hit.p;
+        if (p.stock <= 0) return { ok: false, html: t('{n} is out of stock.', { n: esc(N(p)) }) };
+        if (p.weighted && hit.qty === 1 && !/^21\d{11}$/.test(code)) { setTimeout(() => openModal({ kind: 'weigh', pid: p.id, w: '' })); return { close: true }; }
+        addToCart(p.id, hit.qty, { silent: true });
+        render();
+        const c = calc(ui.cart.lines);
+        return { ok: true, html: `<b>${esc(N(p))}</b> × ${qtyFmt(hit.qty, p.weighted)} · ${money(r2(p.price * hit.qty))}<span class="cam-total">${t('Bill {a} SAR · {n} items', { a: money(c.total), n: r2(c.items) })}</span>` };
+      },
+      onClose: () => render(),
+    });
+  }
+
   // ---------------------------------------------------------------- events
   document.addEventListener('click', (ev) => {
     const el = ev.target.closest('[data-a]');
@@ -1413,6 +1469,7 @@
     }
   });
   document.addEventListener('keydown', (ev) => {
+    if (window.CameraScanner && CameraScanner.isOpen()) return;
     if (ev.key === 'Escape' && ui.modal && ui.modal.kind !== 'terminal') closeModal();
     if (ui.modal && /^(pin-unlock|approve)$/.test(ui.modal.kind)) {
       if (/^\d$/.test(ev.key)) { const b = document.querySelector(`[data-a="pin-key"][data-k2="${ev.key}"]`); if (b) b.click(); }

@@ -9,14 +9,15 @@ A clickable proof of concept of the Tamveen (تموين) grocery point of sale, 
 1. Sign in with any store ID and password, and pick who to sign in as (Cashier, Manager or Owner).
 2. PINs for *Unlock with PIN*, *Lock · switch employee* and discount approval: Cashier `1111`, Manager `1234`, Owner `9999`.
 3. Use **Demo controls** (bottom of the screen) to simulate a lost shop server, internet outage, printer out of paper, a card terminal that does not reply, or a shelf price change.
-4. **Settings → Reset demo data** restores the sample shop.
+4. **Camera scanning:** tap **Camera** next to the barcode field at checkout and allow camera access. To try it, open **Products → Test barcodes** on another screen (or print it) and point the camera at a barcode.
+5. **Settings → Reset demo data** restores the sample shop.
 
 ## What is in it
 
 | Area | What works |
 | --- | --- |
 | Sign in | Store ID + password, PIN unlock, Vision 2030 panel with the animated flag, English / Arabic |
-| Checkout | Barcode scanning (keyboard-wedge scanners work: type + Enter), pack barcodes (a carton adds 12 pieces), scale labels (`21…` barcodes carry the weight), search in Arabic or English, categories, weighed items, stock warnings, line discounts with manager PIN approval, hold / resume, customer select or create |
+| Checkout | Camera barcode scanning on phones, tablets and laptops (continuous: every read adds to the bill), hardware barcode scanners (type + Enter), pack barcodes (a carton adds 12 pieces), scale labels (`21…` barcodes carry the weight), search in Arabic or English, categories, weighed items, stock warnings, line discounts with manager PIN approval, hold / resume, customer select or create |
 | Payment | Cash with keypad and quick amounts, card (simulated terminal, incl. "no reply" recovery), bank transfer with reference, sell on credit against the customer's limit, split cash + card |
 | Invoice | Simplified / standard tax invoice, bilingual 80 mm receipt, ZATCA TLV QR code, print, send digital copy, offline queueing and sync |
 | Returns | Credit note linked to the original invoice, partial quantities, restock, refund to cash / card / account balance |
@@ -43,6 +44,8 @@ css/app.css       design tokens and layout
 js/data.js        sample shop data (products, customers, invoices, orders…)
 js/i18n-ar.js     Arabic strings
 js/app.js         the app: routing, views, actions
+js/camera.js      camera barcode scanner (BarcodeDetector, with ZXing fallback)
+js/zxing.min.js   ZXing barcode reader (@zxing/library 0.21.3, Apache-2.0), loaded only when needed
 js/qrcode.js      QR code generator (qrcode-generator 1.4.4, MIT)
 assets/           Sora font, Vision 2030 artwork, flag animation
 ```

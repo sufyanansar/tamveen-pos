@@ -20,35 +20,35 @@ window.SEED = (function () {
   const p = (id, sku, en, ar, cat, price, stock, opts = {}) => Object.assign({
     id, sku, en, ar, cat, price, stock, vat: 'standard', reorder: 10, cost: +(price / 1.15 * 0.8).toFixed(2),
     unit: 'piece', weighted: false, fav: false, active: true, brand: '',
-    packs: [{ name: 'Piece', qty: 1, barcode: '628100' + String(1000000 + Number(id.slice(1))).slice(1) + '1', base: true }],
+    packs: [],
   }, opts);
 
   const products = [
-    p('p1', 'DRY-MLK-1L', 'Fresh milk 1 L', 'حليب طازج ١ لتر', 'dairy', 6.50, 48, { fav: true, brand: 'Almarai', packs: [{ name: 'Piece', qty: 1, barcode: '6281000000011', base: true }, { name: 'Carton', qty: 12, barcode: '6281000000012' }] }),
-    p('p2', 'BAK-ARB-5', 'Arabic bread · 5 pcs', 'خبز عربي ٥ حبات', 'bakery', 2.00, 120, { fav: true, unit: 'pack', packs: [{ name: 'Pack', qty: 1, barcode: '6281000000021', base: true }] }),
-    p('p3', 'RCE-BAS-5K', 'Basmati rice 5 kg', 'أرز بسمتي ٥ كجم', 'rice', 46.00, 22, { fav: true, unit: 'bag', packs: [{ name: 'Bag', qty: 1, barcode: '6281000000031', base: true }, { name: 'Sack of 4', qty: 4, barcode: '6281000000032' }] }),
-    p('p4', 'DRY-EGG-30', 'Eggs · tray of 30', 'بيض ٣٠ حبة', 'dairy', 23.00, 15, { fav: true, unit: 'tray', packs: [{ name: 'Tray', qty: 1, barcode: '6281000000041', base: true }] }),
-    p('p5', 'DRK-WTR-12', 'Water 12 × 330 ml', 'مياه ١٢ × ٣٣٠ مل', 'drinks', 11.50, 36, { fav: true, unit: 'pack', packs: [{ name: 'Pack', qty: 1, barcode: '6281000000051', base: true }] }),
+    p('p1', 'DRY-MLK-1L', 'Fresh milk 1 L', 'حليب طازج ١ لتر', 'dairy', 6.50, 48, { fav: true, brand: 'Almarai', packs: [{ name: 'Piece', qty: 1, barcode: '6281000001011', base: true }, { name: 'Carton', qty: 12, barcode: '6281000001028' }] }),
+    p('p2', 'BAK-ARB-5', 'Arabic bread · 5 pcs', 'خبز عربي ٥ حبات', 'bakery', 2.00, 120, { fav: true, unit: 'pack', packs: [{ name: 'Pack', qty: 1, barcode: '6281000002018', base: true }] }),
+    p('p3', 'RCE-BAS-5K', 'Basmati rice 5 kg', 'أرز بسمتي ٥ كجم', 'rice', 46.00, 22, { fav: true, unit: 'bag', packs: [{ name: 'Bag', qty: 1, barcode: '6281000003015', base: true }, { name: 'Sack of 4', qty: 4, barcode: '6281000003022' }] }),
+    p('p4', 'DRY-EGG-30', 'Eggs · tray of 30', 'بيض ٣٠ حبة', 'dairy', 23.00, 15, { fav: true, unit: 'tray', packs: [{ name: 'Tray', qty: 1, barcode: '6281000004012', base: true }] }),
+    p('p5', 'DRK-WTR-12', 'Water 12 × 330 ml', 'مياه ١٢ × ٣٣٠ مل', 'drinks', 11.50, 36, { fav: true, unit: 'pack', packs: [{ name: 'Pack', qty: 1, barcode: '6281000005019', base: true }] }),
     p('p6', 'PRD-TOM-KG', 'Tomatoes · per kg', 'طماطم · بالكيلو', 'produce', 4.80, 64.5, { fav: true, unit: 'kg', weighted: true, vat: 'standard', packs: [{ name: 'kg', qty: 1, barcode: '2100006000000', base: true }] }),
-    p('p7', 'DRK-OJ-140', 'Orange juice 1.4 L', 'عصير برتقال ١٫٤ لتر', 'drinks', 11.50, 14, { fav: true, cost: 8.20, reorder: 24, packs: [{ name: 'Piece', qty: 1, barcode: '6281000000071', base: true }, { name: 'Carton', qty: 6, barcode: '6281000000072' }] }),
-    p('p8', 'PNT-SUG-2K', 'Sugar 2 kg', 'سكر ٢ كجم', 'pantry', 9.75, 3, { fav: true, unit: 'bag', reorder: 12, packs: [{ name: 'Bag', qty: 1, barcode: '6281000000081', base: true }] }),
-    p('p9', 'DRY-LBN-1L', 'Laban 1 L', 'لبن ١ لتر', 'dairy', 5.50, 30, { packs: [{ name: 'Piece', qty: 1, barcode: '6281000000091', base: true }] }),
-    p('p10', 'DRY-LBH-400', 'Labneh 400 g', 'لبنة ٤٠٠ جم', 'dairy', 12.25, 18, { packs: [{ name: 'Piece', qty: 1, barcode: '6281000000101', base: true }] }),
-    p('p11', 'DRY-CHS-500', 'White cheese 500 g', 'جبنة بيضاء ٥٠٠ جم', 'dairy', 17.95, 0, { packs: [{ name: 'Piece', qty: 1, barcode: '6281000000111', base: true }] }),
-    p('p12', 'BAK-SAM-6', 'Samoli bread · 6 pcs', 'خبز صامولي ٦ حبات', 'bakery', 3.00, 40, { unit: 'pack', packs: [{ name: 'Pack', qty: 1, barcode: '6281000000121', base: true }] }),
-    p('p13', 'BAK-CRS-4', 'Croissant · 4 pcs', 'كرواسون ٤ حبات', 'bakery', 9.50, 12, { unit: 'pack', packs: [{ name: 'Pack', qty: 1, barcode: '6281000000131', base: true }] }),
-    p('p14', 'RCE-SEL-5K', 'Sella rice 5 kg', 'أرز سيلا ٥ كجم', 'rice', 39.00, 16, { unit: 'bag', packs: [{ name: 'Bag', qty: 1, barcode: '6281000000141', base: true }] }),
-    p('p15', 'RCE-LEN-1K', 'Red lentils 1 kg', 'عدس أحمر ١ كجم', 'rice', 8.75, 25, { unit: 'bag', packs: [{ name: 'Bag', qty: 1, barcode: '6281000000151', base: true }] }),
+    p('p7', 'DRK-OJ-140', 'Orange juice 1.4 L', 'عصير برتقال ١٫٤ لتر', 'drinks', 11.50, 14, { fav: true, cost: 8.20, reorder: 24, packs: [{ name: 'Piece', qty: 1, barcode: '6281000007013', base: true }, { name: 'Carton', qty: 6, barcode: '6281000007020' }] }),
+    p('p8', 'PNT-SUG-2K', 'Sugar 2 kg', 'سكر ٢ كجم', 'pantry', 9.75, 3, { fav: true, unit: 'bag', reorder: 12, packs: [{ name: 'Bag', qty: 1, barcode: '6281000008010', base: true }] }),
+    p('p9', 'DRY-LBN-1L', 'Laban 1 L', 'لبن ١ لتر', 'dairy', 5.50, 30, { packs: [{ name: 'Piece', qty: 1, barcode: '6281000009017', base: true }] }),
+    p('p10', 'DRY-LBH-400', 'Labneh 400 g', 'لبنة ٤٠٠ جم', 'dairy', 12.25, 18, { packs: [{ name: 'Piece', qty: 1, barcode: '6281000010013', base: true }] }),
+    p('p11', 'DRY-CHS-500', 'White cheese 500 g', 'جبنة بيضاء ٥٠٠ جم', 'dairy', 17.95, 0, { packs: [{ name: 'Piece', qty: 1, barcode: '6281000011010', base: true }] }),
+    p('p12', 'BAK-SAM-6', 'Samoli bread · 6 pcs', 'خبز صامولي ٦ حبات', 'bakery', 3.00, 40, { unit: 'pack', packs: [{ name: 'Pack', qty: 1, barcode: '6281000012017', base: true }] }),
+    p('p13', 'BAK-CRS-4', 'Croissant · 4 pcs', 'كرواسون ٤ حبات', 'bakery', 9.50, 12, { unit: 'pack', packs: [{ name: 'Pack', qty: 1, barcode: '6281000013014', base: true }] }),
+    p('p14', 'RCE-SEL-5K', 'Sella rice 5 kg', 'أرز سيلا ٥ كجم', 'rice', 39.00, 16, { unit: 'bag', packs: [{ name: 'Bag', qty: 1, barcode: '6281000014011', base: true }] }),
+    p('p15', 'RCE-LEN-1K', 'Red lentils 1 kg', 'عدس أحمر ١ كجم', 'rice', 8.75, 25, { unit: 'bag', packs: [{ name: 'Bag', qty: 1, barcode: '6281000015018', base: true }] }),
     p('p16', 'PRD-CUC-KG', 'Cucumbers · per kg', 'خيار · بالكيلو', 'produce', 5.95, 30, { unit: 'kg', weighted: true, packs: [{ name: 'kg', qty: 1, barcode: '2100016000000', base: true }] }),
     p('p17', 'PRD-BAN-KG', 'Bananas · per kg', 'موز · بالكيلو', 'produce', 6.50, 42.2, { unit: 'kg', weighted: true, packs: [{ name: 'kg', qty: 1, barcode: '2100017000000', base: true }] }),
-    p('p18', 'PRD-DAT-1K', 'Sukkari dates 1 kg', 'تمر سكري ١ كجم', 'produce', 28.00, 20, { vat: 'standard', unit: 'box', packs: [{ name: 'Box', qty: 1, barcode: '6281000000181', base: true }] }),
-    p('p19', 'DRK-LAB-6', 'Cola · 6 × 320 ml', 'كولا ٦ × ٣٢٠ مل', 'drinks', 13.50, 28, { unit: 'pack', packs: [{ name: 'Pack', qty: 1, barcode: '6281000000191', base: true }] }),
-    p('p20', 'DRK-TEA-100', 'Black tea · 100 bags', 'شاي أسود ١٠٠ كيس', 'pantry', 16.50, 22, { packs: [{ name: 'Box', qty: 1, barcode: '6281000000201', base: true }] }),
-    p('p21', 'PNT-OIL-1L', 'Sunflower oil 1.5 L', 'زيت دوار الشمس ١٫٥ لتر', 'pantry', 15.25, 19, { packs: [{ name: 'Bottle', qty: 1, barcode: '6281000000211', base: true }] }),
-    p('p22', 'PNT-COF-250', 'Saudi coffee 250 g', 'قهوة سعودية ٢٥٠ جم', 'pantry', 24.00, 11, { packs: [{ name: 'Pack', qty: 1, barcode: '6281000000221', base: true }] }),
-    p('p23', 'HSH-DSH-1L', 'Dish soap 1 L', 'سائل جلي ١ لتر', 'household', 8.95, 26, { packs: [{ name: 'Bottle', qty: 1, barcode: '6281000000231', base: true }] }),
-    p('p24', 'HSH-TIS-10', 'Tissues · 10 boxes', 'مناديل ١٠ علب', 'household', 21.00, 9, { packs: [{ name: 'Pack', qty: 1, barcode: '6281000000241', base: true }] }),
-    p('p25', 'DRK-MNG-140', 'Mango juice 1.4 L', 'عصير مانجو ١٫٤ لتر', 'drinks', 11.50, 20, { packs: [{ name: 'Piece', qty: 1, barcode: '6281000000251', base: true }, { name: 'Carton', qty: 6, barcode: '6281000000028' }] }),
+    p('p18', 'PRD-DAT-1K', 'Sukkari dates 1 kg', 'تمر سكري ١ كجم', 'produce', 28.00, 20, { vat: 'standard', unit: 'box', packs: [{ name: 'Box', qty: 1, barcode: '6281000018019', base: true }] }),
+    p('p19', 'DRK-LAB-6', 'Cola · 6 × 320 ml', 'كولا ٦ × ٣٢٠ مل', 'drinks', 13.50, 28, { unit: 'pack', packs: [{ name: 'Pack', qty: 1, barcode: '6281000019016', base: true }] }),
+    p('p20', 'DRK-TEA-100', 'Black tea · 100 bags', 'شاي أسود ١٠٠ كيس', 'pantry', 16.50, 22, { packs: [{ name: 'Box', qty: 1, barcode: '6281000020012', base: true }] }),
+    p('p21', 'PNT-OIL-1L', 'Sunflower oil 1.5 L', 'زيت دوار الشمس ١٫٥ لتر', 'pantry', 15.25, 19, { packs: [{ name: 'Bottle', qty: 1, barcode: '6281000021019', base: true }] }),
+    p('p22', 'PNT-COF-250', 'Saudi coffee 250 g', 'قهوة سعودية ٢٥٠ جم', 'pantry', 24.00, 11, { packs: [{ name: 'Pack', qty: 1, barcode: '6281000022016', base: true }] }),
+    p('p23', 'HSH-DSH-1L', 'Dish soap 1 L', 'سائل جلي ١ لتر', 'household', 8.95, 26, { packs: [{ name: 'Bottle', qty: 1, barcode: '6281000023013', base: true }] }),
+    p('p24', 'HSH-TIS-10', 'Tissues · 10 boxes', 'مناديل ١٠ علب', 'household', 21.00, 9, { packs: [{ name: 'Pack', qty: 1, barcode: '6281000024010', base: true }] }),
+    p('p25', 'DRK-MNG-140', 'Mango juice 1.4 L', 'عصير مانجو ١٫٤ لتر', 'drinks', 11.50, 20, { packs: [{ name: 'Piece', qty: 1, barcode: '6281000025017', base: true }, { name: 'Carton', qty: 6, barcode: '6281000025024' }] }),
   ];
 
   const customers = [
@@ -109,7 +109,7 @@ window.SEED = (function () {
   ];
 
   return {
-    version: 3,
+    version: 4,
     settings: {
       lang: 'en', shopEn: 'Tamveen Mini Market', shopAr: 'تموين ميني ماركت', branch: 'Branch 1', branchAr: 'الفرع ١',
       address: 'Al-Olaya, Riyadh 12211', vatNo: '300012345600003', cr: '1010123456', nextInvoice: 482, nextCN: 12, nextPay: 92,

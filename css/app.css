@@ -6,6 +6,7 @@
   --radius:16px;--font:'Sora','IBM Plex Sans Arabic',system-ui,sans-serif;--ar:'IBM Plex Sans Arabic','Sora',sans-serif;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{margin:0;height:100%}
 body{background:var(--bg);color:var(--green);font-family:var(--font);font-size:14px;line-height:1.4;-webkit-font-smoothing:antialiased}
 [dir=rtl] body,[dir=rtl] .app{font-family:var(--ar)}
@@ -350,3 +351,37 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
   .savebar{flex-wrap:wrap}
   .savebar .btn{flex:1 1 auto}
 }
+
+/* ---------- camera scanner ---------- */
+.cam-btn{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--soft);color:var(--green);font-weight:600;font-size:13px;flex:none}
+.cam-btn:hover{border-color:var(--green)}
+.cam-btn.sm{height:36px;width:36px;padding:0;justify-content:center;border-radius:10px}
+.scan{padding-inline-end:8px}
+.cam-open{overflow:hidden}
+.cam-overlay{position:fixed;inset:0;z-index:150;background:#06231e;color:#fff;display:flex;flex-direction:column}
+.cam-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:16px 20px}
+.cam-top b{font-size:18px}
+.cam-top .small{color:#b9d3c8;margin-top:2px}
+.cam-x{width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.12);color:#fff;font-size:18px;flex:none}
+.cam-stage{position:relative;flex:1;min-height:0;overflow:hidden;background:#000}
+.cam-stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.cam-frame{position:absolute;left:50%;top:50%;width:min(80%,520px);height:min(34%,220px);transform:translate(-50%,-50%);border-radius:18px;box-shadow:0 0 0 9999px rgba(0,0,0,.45);border:3px solid var(--lime);overflow:hidden}
+.cam-line{position:absolute;left:6%;right:6%;top:50%;height:2px;background:#ff5a4f;box-shadow:0 0 8px #ff5a4f;animation:camline 1.6s ease-in-out infinite alternate}
+@keyframes camline{from{top:18%}to{top:82%}}
+.cam-msg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:min(90%,440px);background:rgba(6,35,30,.92);border-radius:16px;padding:16px 18px;text-align:center;font-size:15px;line-height:1.5}
+.cam-result{min-height:58px;padding:12px 20px;font-size:15px;display:flex;flex-direction:column;justify-content:center;gap:2px;background:#0B3D34}
+.cam-result.ok{background:var(--green)}
+.cam-result.ok b{color:var(--lime)}
+.cam-result.bad{background:#7a1f18}
+.cam-total{font-size:13px;color:#cfe3d9}
+.cam-bar{display:flex;gap:10px;align-items:center;padding:12px 20px calc(12px + env(safe-area-inset-bottom));background:#06231e}
+.cam-bar .btn.ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.35)}
+.cam-bar .btn.ghost.on{background:var(--lime);color:var(--green);border-color:var(--lime)}
+@media(max-width:700px){.cam-btn span{display:none}.cam-btn{width:40px;padding:0;justify-content:center}}
+
+.bc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.bc{border:1px solid var(--line);border-radius:16px;padding:14px;background:#fff;display:flex;flex-direction:column;gap:6px;break-inside:avoid}
+.bc svg{width:100%;height:auto;display:block;background:#fff}
+.bc .nm{font-weight:600;font-size:14px}
+.bc .cd{font-family:ui-monospace,Menlo,monospace;letter-spacing:.12em;text-align:center;color:#1b2b26}
+@media print{body.print-sheet *{visibility:visible}body.print-sheet .side,body.print-sheet .topbar,body.print-sheet .demo-fab,body.print-sheet .noprint{display:none!important}}
