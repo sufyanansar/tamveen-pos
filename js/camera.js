@@ -46,9 +46,9 @@
   }
 
   async function wasmDecoder() {
-    const Z = await loadScript('js/zxing-wasm-reader.js?v=11', 'ZXingWASM');
+    const Z = await loadScript('js/zxing-wasm-reader.js?v=12', 'ZXingWASM');
     const base = new URL('js/', location.href).href;
-    await Z.prepareZXingModule({ overrides: { locateFile: (path, prefix) => (path.endsWith('.wasm') ? base + path + '?v=11' : prefix + path) }, fireImmediately: true });
+    await Z.prepareZXingModule({ overrides: { locateFile: (path, prefix) => (path.endsWith('.wasm') ? base + path + '?v=12' : prefix + path) }, fireImmediately: true });
     const crop = cropper(1280);
     const opts = { formats: ['EAN13', 'EAN8', 'UPCA', 'UPCE', 'Code128'], tryHarder: true, tryRotate: false, tryInvert: false, tryDownscale: true, maxNumberOfSymbols: 1 };
     return {
@@ -66,7 +66,7 @@
     if (window.ZXing) return Promise.resolve(window.ZXing);
     return new Promise((resolve, reject) => {
       const s = document.createElement('script');
-      s.src = 'js/zxing.min.js?v=11';
+      s.src = 'js/zxing.min.js?v=12';
       s.onload = () => resolve(window.ZXing);
       s.onerror = () => reject(new Error('zxing'));
       document.head.appendChild(s);
