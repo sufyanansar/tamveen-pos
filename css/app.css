@@ -366,8 +366,6 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
 .cam-stage{position:relative;flex:1;min-height:0;overflow:hidden;background:#000}
 .cam-stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .cam-frame{position:absolute;left:50%;top:50%;width:min(80%,520px);height:min(34%,220px);transform:translate(-50%,-50%);border-radius:18px;box-shadow:0 0 0 9999px rgba(0,0,0,.45);border:3px solid var(--lime);overflow:hidden}
-.cam-line{position:absolute;left:6%;right:6%;top:50%;height:2px;background:#ff5a4f;box-shadow:0 0 8px #ff5a4f;animation:camline 1.6s ease-in-out infinite alternate}
-@keyframes camline{from{top:18%}to{top:82%}}
 .cam-msg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:min(90%,440px);background:rgba(6,35,30,.92);border-radius:16px;padding:16px 18px;text-align:center;font-size:15px;line-height:1.5}
 .cam-result{min-height:58px;padding:12px 20px;font-size:15px;display:flex;flex-direction:column;justify-content:center;gap:2px;background:#0B3D34}
 .cam-result.ok{background:var(--green)}

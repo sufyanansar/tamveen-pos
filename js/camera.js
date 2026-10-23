@@ -46,9 +46,9 @@
   }
 
   async function wasmDecoder() {
-    const Z = await loadScript('js/zxing-wasm-reader.js?v=9', 'ZXingWASM');
+    const Z = await loadScript('js/zxing-wasm-reader.js?v=10', 'ZXingWASM');
     const base = new URL('js/', location.href).href;
-    await Z.prepareZXingModule({ overrides: { locateFile: (path, prefix) => (path.endsWith('.wasm') ? base + path + '?v=9' : prefix + path) }, fireImmediately: true });
+    await Z.prepareZXingModule({ overrides: { locateFile: (path, prefix) => (path.endsWith('.wasm') ? base + path + '?v=10' : prefix + path) }, fireImmediately: true });
     const crop = cropper(1280);
     const opts = { formats: ['EAN13', 'EAN8', 'UPCA', 'UPCE', 'Code128'], tryHarder: true, tryRotate: false, tryInvert: false, tryDownscale: true, maxNumberOfSymbols: 1 };
     return {
@@ -66,7 +66,7 @@
     if (window.ZXing) return Promise.resolve(window.ZXing);
     return new Promise((resolve, reject) => {
       const s = document.createElement('script');
-      s.src = 'js/zxing.min.js?v=9';
+      s.src = 'js/zxing.min.js?v=10';
       s.onload = () => resolve(window.ZXing);
       s.onerror = () => reject(new Error('zxing'));
       document.head.appendChild(s);
@@ -131,7 +131,7 @@
       <div class="cam-top"><div><b>${esc(o.title || t('Scan with camera'))}</b><div class="small">${esc(t(o.continuous ? 'Point the camera at a barcode. Each scan adds to the bill.' : 'Point the camera at a barcode.'))}</div></div>
         <button class="cam-x" data-cam="close" aria-label="${esc(t('Close'))}">✕</button></div>
       <div class="cam-stage"><video playsinline muted autoplay></video>
-        <div class="cam-frame"><span class="cam-line"></span></div>
+        <div class="cam-frame"></div>
         <div class="cam-msg" id="cam-msg">${esc(t('Starting camera…'))}</div></div>
       <div class="cam-result" id="cam-result" aria-live="polite"></div>
       <div class="cam-bar">
