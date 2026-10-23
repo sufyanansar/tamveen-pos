@@ -44,7 +44,8 @@ css/app.css       design tokens and layout
 js/data.js        sample shop data (products, customers, invoices, orders…)
 js/i18n-ar.js     Arabic strings
 js/app.js         the app: routing, views, actions
-js/camera.js      camera barcode scanner (BarcodeDetector, with ZXing fallback)
+js/camera.js      camera barcode scanner (BarcodeDetector, else zxing-wasm, else ZXing JS)
+js/zxing-wasm-reader.js, js/zxing_reader.wasm  ZXing-C++ as WebAssembly (zxing-wasm 3.1.4, MIT), loaded only when needed
 js/zxing.min.js   ZXing barcode reader (@zxing/library 0.21.3, Apache-2.0), loaded only when needed
 js/qrcode.js      QR code generator (qrcode-generator 1.4.4, MIT)
 assets/           Sora font, Vision 2030 artwork, flag animation

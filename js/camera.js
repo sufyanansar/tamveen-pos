@@ -1,11 +1,13 @@
 /* Camera barcode scanner for Tamveen POS.
-   Uses the browser's BarcodeDetector where it exists (Chrome on Android, macOS, ChromeOS) and falls
-   back to ZXing (loaded on first use) everywhere else, e.g. iPhone Safari and Firefox.
+   Uses the browser's BarcodeDetector where it exists (Chrome on Android, macOS, ChromeOS). Everywhere else,
+   e.g. iPhone Safari, it uses ZXing-C++ compiled to WebAssembly (zxing-wasm), loaded on first use, which is
+   much faster than the JavaScript port. The JavaScript ZXing stays as a last fallback.
    The overlay lives in its own root so app re-renders never touch the running video. */
 (function () {
   'use strict';
 
-  const FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf', 'qr_code'];
+  // Shop products carry retail barcodes; fewer formats means less work per frame.
+  const FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'];
   const t = (s, v) => (window.TamveenT ? window.TamveenT(s, v) : s);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -15,6 +17,49 @@
     let el = document.getElementById('camera-root');
     if (!el) { el = document.createElement('div'); el.id = 'camera-root'; document.body.appendChild(el); }
     return el;
+  }
+
+  function loadScript(src, global) {
+    if (window[global]) return Promise.resolve(window[global]);
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = () => (window[global] ? resolve(window[global]) : reject(new Error('zxing')));
+      s.onerror = () => reject(new Error('zxing'));
+      document.head.appendChild(s);
+    });
+  }
+
+  // Crops the centre band of the frame, where the viewfinder is, into a canvas.
+  function cropper(maxW) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    return (video) => {
+      const vw = video.videoWidth, vh = video.videoHeight;
+      if (!vw || !vh) return null;
+      const cw = Math.round(vw * 0.9), ch = Math.round(vh * 0.5);
+      const scale = Math.min(1, maxW / cw);
+      canvas.width = Math.round(cw * scale); canvas.height = Math.round(ch * scale);
+      ctx.drawImage(video, (vw - cw) / 2, (vh - ch) / 2, cw, ch, 0, 0, canvas.width, canvas.height);
+      return { canvas, ctx };
+    };
+  }
+
+  async function wasmDecoder() {
+    const Z = await loadScript('js/zxing-wasm-reader.js?v=9', 'ZXingWASM');
+    const base = new URL('js/', location.href).href;
+    await Z.prepareZXingModule({ overrides: { locateFile: (path, prefix) => (path.endsWith('.wasm') ? base + path + '?v=9' : prefix + path) }, fireImmediately: true });
+    const crop = cropper(1280);
+    const opts = { formats: ['EAN13', 'EAN8', 'UPCA', 'UPCE', 'Code128'], tryHarder: true, tryRotate: false, tryInvert: false, tryDownscale: true, maxNumberOfSymbols: 1 };
+    return {
+      kind: 'wasm',
+      detect: async (video) => {
+        const f = crop(video); if (!f) return null;
+        const res = await Z.readBarcodes(f.ctx.getImageData(0, 0, f.canvas.width, f.canvas.height), opts);
+        const hit = res.find((r) => r.isValid);
+        return hit ? hit.text : null;
+      },
+    };
   }
 
   function loadZXing() {
@@ -39,10 +84,11 @@
         }
       } catch (e) { /* fall through to ZXing */ }
     }
+    try { return await wasmDecoder(); } catch (e) { /* fall back to the JavaScript port */ }
     const Z = await loadZXing();
     const hints = new Map();
     const F = Z.BarcodeFormat;
-    hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128, F.CODE_39, F.ITF, F.QR_CODE]);
+    hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128]);
     hints.set(Z.DecodeHintType.TRY_HARDER, true);
     const reader = new Z.MultiFormatReader();
     reader.setHints(hints);
@@ -108,7 +154,7 @@
   async function startStream() {
     stopStream();
     const dev = state.devices[state.deviceIdx];
-    const video = { width: { ideal: 1280 }, height: { ideal: 720 } };
+    const video = { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } };
     if (dev) video.deviceId = { exact: dev.deviceId }; else video.facingMode = { ideal: 'environment' };
     const stream = await navigator.mediaDevices.getUserMedia({ video, audio: false });
     state.stream = stream;
@@ -117,6 +163,12 @@
     const track = stream.getVideoTracks()[0];
     const caps = track.getCapabilities ? track.getCapabilities() : {};
     document.getElementById('cam-torch').hidden = !caps.torch;
+    // Keep focusing continuously, and zoom in a little so the barcode fills the frame from a distance the
+    // lens can focus at (phone main cameras blur below about 15 cm).
+    const adv = {};
+    if (caps.focusMode && caps.focusMode.includes('continuous')) adv.focusMode = 'continuous';
+    if (caps.zoom && caps.zoom.max >= 1.5) adv.zoom = Math.min(caps.zoom.max, 2);
+    if (Object.keys(adv).length) await track.applyConstraints({ advanced: [adv] }).catch(() => {});
     // Device labels are only filled in after permission is granted.
     const list = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'videoinput');
     if (!state.devices.length && list.length) {
@@ -140,7 +192,7 @@
       } catch (e) { /* frame not ready */ }
       if (state) state.busy = false;
     }
-    if (state) state.timer = setTimeout(loop, 120);
+    if (state) state.timer = setTimeout(loop, state.decoder && state.decoder.kind === 'zxing' ? 120 : 40);
   }
 
   function handle(code) {
