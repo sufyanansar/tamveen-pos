@@ -72,17 +72,35 @@ invoice's PIH will not match and ZATCA will flag it.
 `cd server && npm test` checks the hashing, totals, CSR, signature and the whole flow (onboarding, chain,
 idempotency, queue and retry) against a fake ZATCA server.
 
+## Tested against the ZATCA sandbox
+
+Tested on 2026-10-23 against the developer-portal sandbox (`env: sandbox`, OTP `123345`). The ZATCA SDK itself
+could not be downloaded from the test environment (it is hosted on SharePoint), so the sandbox's own validator was used:
+
+- **Onboarding.** The CSR is accepted and a compliance CSID issued, for both `0100` (simplified) and `1100`
+  (standard + simplified).
+- **Compliance checks.** All six samples (invoice, credit and debit note, standard and simplified) return `PASS`
+  with no errors or warnings. This confirms the invoice hash, ECDSA signature, signed properties digest, certificate
+  digest and QR.
+- **Edge cases**, also `PASS`: per-line rounding with a `PayableRoundingAmount`, discounts, zero-rated, exempt and
+  out-of-scope lines, card payment.
+- **Fixed by the sandbox run:** QR tag 3 is the Riyadh date and time with no trailing `Z` (KSA-25), and QR tag 4 is
+  the amount due (`PayableAmount`, BT-115), not the VAT-inclusive total, when there is a rounding amount.
+- **Item names** shorter than 3 characters get warning BR-KSA-F-06-C19. It is only a warning, but product names
+  should be at least 3 characters.
+
+**The sandbox cannot test reporting.** Its production CSID step returns the same demo certificate to everyone
+(VAT number 399999999900003, a different key), so every reported invoice is rejected with "User only allowed to use
+the vat number that exists in the authentication certificate". Onboarding now detects this, says so, and
+`/api/zatca/status` shows `demoCertificate: true`. In `simulation` and `production` a certificate that does not match
+the device's key stops onboarding. To test real reporting, onboard with `env: simulation` and an OTP from the
+simulation Fatoora portal (fatoora.zatca.gov.sa, taxpayer login, Simulation).
+
 ## Not verified yet
 
-Everything above is built from ZATCA's published specs and has only been tested against a fake ZATCA. These need
-checking with the ZATCA SDK (`fatoora -validate`) and the developer sandbox before going further:
-
-- **Signed properties digest.** ZATCA digests the XAdES SignedProperties with a fixed layout, whitespace included.
-  The layout in `server/lib/signer.js` follows the one known to pass validation, but needs confirming.
-- **QR timestamp (tag 3).** Uses the invoice's Riyadh date and time with a trailing `Z`. Easy to change in `qrTimestamp()`.
-- **Rounding.** Shelf prices include VAT. Line amounts are worked out excluding VAT to 2 decimals, so totals can
-  differ from the till by a few halalas; the difference goes in `PayableRoundingAmount`. ZATCA may prefer a different approach.
-- **Zero-rated and exempt items.** The exemption reason codes (`VATEX-…`) are placeholders.
+- **Reporting and clearance end to end.** Needs the simulation environment (see above).
+- **Zero-rated and exempt items.** Accepted by the validator, but the exemption reason codes (`VATEX-…`) are
+  placeholders; pick the right code for the goods actually sold.
 - **Standard (B2B) invoices.** Clearance needs the buyer's full national address, and customers don't have addresses
   in the app yet. Onboard with `invoiceType` `0100` (simplified only) until that is added.
 - **Certificate renewal.** The production CSID expires. Renewal is not built yet; `/api/zatca/status` shows the expiry date.

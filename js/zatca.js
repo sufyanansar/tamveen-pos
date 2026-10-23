@@ -119,8 +119,8 @@
     const d = new Date(new Date(iso).getTime() + 3 * 3600 * 1000).toISOString();
     return { date: d.slice(0, 10), time: d.slice(11, 19) };
   }
-  // QR tag 3. Kept in one place so it is easy to change if the SDK validator asks for another format.
-  const qrTimestamp = (iso) => { const t = riyadh(iso); return `${t.date}T${t.time}Z`; };
+  // QR tag 3: Riyadh local date and time, no zone suffix, so it matches IssueDate/IssueTime (KSA-25).
+  const qrTimestamp = (iso) => { const t = riyadh(iso); return `${t.date}T${t.time}`; };
 
   // ---------------------------------------------------------------- UBL 2.1 invoice
   const NS = {
@@ -220,7 +220,7 @@
   // Tags 1–6 can be made anywhere; 7–9 (signature, public key, certificate signature) only by the signer.
   function qr(doc, built, sig) {
     sig = sig || {};
-    return tlv([doc.seller.name, doc.seller.vat, qrTimestamp(doc.issuedAt), fix2(built.totals.inclusive), fix2(built.totals.vat), built.hash, sig.signature, sig.publicKey, sig.certSignature]);
+    return tlv([doc.seller.name, doc.seller.vat, qrTimestamp(doc.issuedAt), fix2(built.totals.payable), fix2(built.totals.vat), built.hash, sig.signature, sig.publicKey, sig.certSignature]);
   }
 
   // ---------------------------------------------------------------- the POS app's records
@@ -269,7 +269,7 @@
     if (inv.zqr) return inv.zqr;
     if (live) {
       const doc = fromApp(Object.assign({}, inv, { uuid: inv.uuid || '-', icv: inv.icv || 0, pih: inv.pih || PIH0 }), db), b = build(doc);
-      return tlv([doc.seller.name, doc.seller.vat, qrTimestamp(doc.issuedAt), fix2(b.totals.inclusive), fix2(b.totals.vat)]);
+      return tlv([doc.seller.name, doc.seller.vat, qrTimestamp(doc.issuedAt), fix2(b.totals.payable), fix2(b.totals.vat)]);
     }
     if (!inv.uuid) stampAll(db);
     const doc = fromApp(inv, db);

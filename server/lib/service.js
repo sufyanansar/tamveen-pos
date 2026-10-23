@@ -58,7 +58,7 @@ function service(config) {
       return {
         env: config.env, onboarded: onboarded(), vatNumber: egsCfg.vatNumber, icv: c.icv,
         pending: all.filter((r) => r.status === 'pending').length, rejected: all.filter((r) => r.status === 'rejected').length,
-        certificateExpires: e.production && e.production.expires,
+        certificateExpires: e.production && e.production.expires, demoCertificate: !!(e.production && e.production.demo),
       };
     },
 
@@ -129,12 +129,17 @@ function service(config) {
         const pc = await api.productionCSID(egs.compliance, egs.compliance.requestId);
         if (pc.status !== 200 || !pc.body.binarySecurityToken) throw new Error('Production CSID refused: ' + JSON.stringify(pc.body));
         const cert = certFromToken(pc.body.binarySecurityToken);
-        let expires; try { expires = new crypto.X509Certificate(require('./signer').certPem(cert)).validTo; } catch (e) { /* keep going */ }
-        egs.production = { token: pc.body.binarySecurityToken, secret: pc.body.secret, requestId: pc.body.requestID, cert, expires };
+        const x509 = new crypto.X509Certificate(require('./signer').certPem(cert));
+        const ownKey = x509.publicKey.export({ type: 'spki', format: 'der' }).equals(crypto.createPublicKey(egs.privateKey).export({ type: 'spki', format: 'der' }));
+        // The developer-portal sandbox hands every caller the same demo certificate (another VAT number and key),
+        // so invoices signed with it are always rejected. Keep it only for the sandbox and say so.
+        if (!ownKey && config.env !== 'sandbox') throw new Error('ZATCA returned a production certificate that does not match this device\'s key');
+        egs.production = { token: pc.body.binarySecurityToken, secret: pc.body.secret, requestId: pc.body.requestID, cert, expires: x509.validTo, demo: !ownKey };
         egs.complianceResults = results;
         db.saveEgs(egs);
-        log('Onboarded. This device can now sign and report invoices.');
-        return { ok: true, results };
+        if (!ownKey) log('Onboarded with the sandbox demo certificate. Compliance checks passed, but reporting will be rejected in the sandbox; use the simulation environment for real reporting tests.');
+        else log('Onboarded. This device can now sign and report invoices.');
+        return { ok: true, results, demoCertificate: !ownKey };
       });
     },
   };
