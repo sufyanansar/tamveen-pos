@@ -98,6 +98,7 @@ window.I18N_AR = {
   'Clear draft': 'مسح المسودة',
   'Clear this draft?': 'مسح هذه المسودة؟',
   'Close': 'إغلاق',
+  'View details': 'عرض التفاصيل',
   'Close shift': 'إغلاق الوردية',
   'Close shift & sign out': 'إغلاق الوردية وتسجيل الخروج',
   'Collect the cash first, then the card part goes to the terminal.': 'استلم النقد أولاً، ثم يُرسل جزء البطاقة إلى الجهاز.',

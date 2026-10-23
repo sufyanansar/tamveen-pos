@@ -604,24 +604,30 @@
   }
 
   // ---------------------------------------------------------------- views: orders
+  const ORDER_ST = { new: ['New', 'lime'], preparing: ['Preparing', 'amber'], ready: ['Ready', 'green'], completed: ['Completed', 'outline'] };
   function viewOrders() {
-    const st = { new: ['New', 'lime'], preparing: ['Preparing', 'amber'], ready: ['Ready', 'green'], completed: ['Completed', 'outline'] };
-    const cards = db.orders.slice().sort((a, b) => (a.status === 'completed') - (b.status === 'completed')).map((o) => {
-      const c = calc(o.lines), cu = cust(o.customerId);
-      const next = { new: ['prep', 'Start preparing'], preparing: ['ready', 'Mark ready'] }[o.status];
-      return `<div class="card" style="display:flex;flex-direction:column;gap:10px">
-        <div class="between"><b style="font-size:16px">${o.id}</b><span class="tag ${st[o.status][1]}">${t(st[o.status][0])}</span></div>
-        <div class="small muted">${t(o.channel)} · ${fmtTime(o.at)} · ${t(o.type === 'delivery' ? 'Delivery' : 'Pick-up')}</div>
-        <div><b>${cu ? esc(N(cu)) : t('Walk-in')}</b>${o.address ? `<div class="small muted">${esc(o.address)}</div>` : ''}</div>
-        <div class="small">${o.lines.map((l) => `${esc(N(l))} × ${qtyFmt(l.qty, l.weighted)}`).join(' · ')}</div>
-        <div class="between"><span class="muted">${t('{l} lines', { l: c.count })}</span><b class="num">${money(c.total)} SAR</b></div>
-        <div class="row" style="flex-wrap:wrap">${o.status === 'completed' ? `<a class="btn sm ghost" href="#/invoice/${o.invoiceId}" style="text-decoration:none">${t('View invoice')}</a>` : `
-          ${next ? `<button class="btn sm" data-a="order-step" data-id="${o.id}" data-s="${next[0]}">${t(next[1])}</button>` : ''}
-          <button class="btn sm primary" data-a="order-load" data-id="${o.id}">${t('Load into checkout')}</button>`}</div></div>`;
+    const rows = db.orders.slice().sort((a, b) => (a.status === 'completed') - (b.status === 'completed')).map((o) => {
+      const st = ORDER_ST[o.status];
+      return `<div class="order-row"><b class="num">${o.id}</b><span class="tag ${st[1]}">${t(st[0])}</span><span class="spacer"></span>
+        <b class="num">${money(calc(o.lines).total)} SAR</b><button class="btn sm" data-a="order-view" data-id="${o.id}">${t('View details')}</button></div>`;
     }).join('');
-    return `<div class="page-h"><div><h1>${t('Orders')}</h1><div class="sub">${t('Phone, WhatsApp and app orders. Load an order into checkout to take payment and issue the invoice.')}</div></div></div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px">${cards}</div>`;
+    return `<div class="page-h"><div><h1>${t('Orders')}</h1></div></div><div class="order-list">${rows}</div>`;
   }
+  function orderBody(m) {
+    const o = db.orders.find((x) => x.id === m.id); if (!o) return '';
+    const c = calc(o.lines), cu = cust(o.customerId), st = ORDER_ST[o.status];
+    const next = { new: ['prep', 'Start preparing'], preparing: ['ready', 'Mark ready'] }[o.status];
+    const lines = o.lines.map((l) => `<tr><td>${esc(N(l))}</td><td class="r num">${qtyFmt(l.qty, l.weighted)}</td><td class="r num"><b>${money(lineTotal(l))}</b></td></tr>`).join('');
+    return `<div class="between"><h3>${o.id}</h3><span class="tag ${st[1]}">${t(st[0])}</span></div>
+      <div class="small muted">${cu ? esc(N(cu)) : t('Walk-in')} · ${t(o.type === 'delivery' ? 'Delivery' : 'Pick-up')}${o.address ? ' · ' + esc(o.address) : ''}</div>
+      <table class="tbl"><thead><tr><th>${t('Product')}</th><th class="r">${t('Qty')}</th><th class="r">${t('Total')}</th></tr></thead><tbody>${lines}</tbody></table>
+      <div class="between"><b>${t('Total')}</b><b class="num" style="font-size:20px">${money(c.total)} SAR</b></div>
+      <div class="btns" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">${o.status === 'completed' ? `<a class="btn ghost" href="#/invoice/${o.invoiceId}" data-a="close" style="text-decoration:none">${t('View invoice')}</a>` : `
+        ${next ? `<button class="btn" data-a="order-step" data-id="${o.id}" data-s="${next[0]}">${t(next[1])}</button>` : ''}
+        <button class="btn primary" data-a="order-load" data-id="${o.id}">${t('Load into checkout')}</button>`}
+        <button class="btn ghost" data-a="close">${t('Close')}</button></div>`;
+  }
+
 
   // ---------------------------------------------------------------- views: invoices
   function invStatusTag(i) {
@@ -1166,9 +1172,10 @@
           .map(([k, label]) => `<a class="menu-link ${r === k ? 'on' : ''}" href="#/${k}" data-a="close">${t(label)}</a>`).join('');
         return `<div class="menu-who"><b>${esc(isAr() ? u.nameAr : u.name)} · ${t(cap(u.role))}</b><span>${esc(isAr() ? db.settings.shopAr : db.settings.shopEn)} · ${esc(isAr() ? db.settings.branchAr : db.settings.branch)}</span></div>
           <div class="menu-links">${links}</div>
-          <div class="menu-row"><button class="btn sm ghost" data-a="lang">${isAr() ? 'English' : 'العربية'}</button><button class="btn sm ghost" data-a="sync">${I.sync}${t('Sync now')}</button><button class="btn sm ghost" data-a="menu-demo">${I.flask}${t('Demo controls')}</button></div>
+          <div class="menu-row"><button class="btn sm ghost" data-a="lang">${isAr() ? 'English' : 'العربية'}</button></div>
           <div class="menu-row"><button class="btn sm ghost" data-a="close-shift">${t('Close shift')}</button><button class="btn sm ghost" data-a="switch-user">${t('Lock · switch employee')}</button></div>`;
       }
+      case 'order': return orderBody(m);
       case 'info': return `<h3>${t(m.title)}</h3><p>${t(m.body)}</p><div class="btns one"><button class="btn primary" data-a="close">${t('OK')}</button></div>`;
     }
     return '';
@@ -1359,11 +1366,12 @@
     'send-ok': () => { const m = ui.modal; const inv = db.invoices.find((i) => i.id === m.invId); const cu = inv && cust(inv.customerId); const to = m.to != null ? m.to : (cu ? cu.phone : ''); if (!to) return toast(t('Enter a phone number or email.'), 'warn'); closeModal(); toast(t('{i} sent by {c} to {to}', { i: `<b>${m.invId}</b>`, c: m.ch || 'WhatsApp', to: esc(to) })); },
     'new-sale': () => go('checkout'),
     // orders
-    'order-step': (el) => { const o = db.orders.find((x) => x.id === el.dataset.id); o.status = el.dataset.s === 'prep' ? 'preparing' : 'ready'; save(); render(); },
+    'order-view': (el) => openModal({ kind: 'order', id: el.dataset.id }),
+    'order-step': (el) => { const o = db.orders.find((x) => x.id === el.dataset.id); o.status = el.dataset.s === 'prep' ? 'preparing' : 'ready'; save(); render(); if (ui.modal) renderModal(); },
     'order-load': (el) => {
       const o = db.orders.find((x) => x.id === el.dataset.id);
       ui.cart = { lines: o.lines.map((l) => Object.assign({ weighted: prod(l.pid) && prod(l.pid).weighted }, l)), customerId: o.customerId, orderId: o.id };
-      save(); go('checkout');
+      ui.modal = null; renderModal(); save(); go('checkout');
     },
     // invoices
     'inv-filter': (el) => { ui.invFilter = el.dataset.f; render(); },
