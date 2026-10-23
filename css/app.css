@@ -417,7 +417,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
 .pos-total{display:flex;justify-content:space-between;align-items:baseline;font-weight:600;font-size:16px}
 .pos-total b{font-size:30px;letter-spacing:-.02em}
 .pos-total b small{font-size:14px}
-.pos-btns{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.pos-btns{display:grid;grid-template-columns:3fr 1fr;gap:10px}
 .pos-btns .btn{height:54px;font-size:16px}
 kbd{font-family:inherit;font-size:11px;font-weight:700;padding:2px 6px;border-radius:6px;background:rgba(0,0,0,.08)}
 .btn.primary kbd{background:rgba(255,255,255,.18)}
@@ -471,7 +471,5 @@ kbd{font-family:inherit;font-size:11px;font-weight:700;padding:2px 6px;border-ra
   .pos-scan .scan{flex-basis:calc(100% - 88px)}
   .pos-scan .find{flex:1}
   .pos-scan .find span{display:inline}
-  .pos-btns{grid-template-columns:1fr 1fr}
-  .pos-btns .btn.primary{grid-column:1/-1}
   .pos-meta{display:none}
 }

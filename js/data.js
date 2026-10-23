@@ -86,11 +86,6 @@ window.SEED = (function () {
   ];
   invoices.forEach((i) => { if (i.status === 'unpaid') i.outstanding = i.total; });
 
-  const heldBills = [
-    { id: 'H1', at: iso(daysAgo(0, 13, 10)), label: 'Customer went to get wallet', customerId: null, lines: [L('p3', 1), L('p1', 2), L('p7', 1)] },
-    { id: 'H2', at: iso(daysAgo(0, 13, 55)), label: 'Phone order · pick-up', customerId: 'c2', lines: [L('p4', 1), L('p2', 4), L('p6', 2.25)] },
-  ];
-
   const orders = [
     { id: 'ORD-1042', at: iso(daysAgo(0, 12, 20)), channel: 'WhatsApp', customerId: 'c1', type: 'delivery', address: 'Al-Malqa, Street 12, Villa 8', status: 'new', lines: [L('p1', 4), L('p2', 4), L('p4', 1), L('p17', 1.5)] },
     { id: 'ORD-1041', at: iso(daysAgo(0, 11, 2)), channel: 'Phone', customerId: 'c4', type: 'delivery', address: 'Al-Noor Restaurant, King Fahd Rd', status: 'preparing', lines: [L('p3', 4), L('p21', 4), L('p6', 10), L('p16', 6)] },
@@ -109,7 +104,7 @@ window.SEED = (function () {
   ];
 
   return {
-    version: 4,
+    version: 5,
     settings: {
       lang: 'en', shopEn: 'Tamveen Mini Market', shopAr: 'تموين ميني ماركت', branch: 'Branch 1', branchAr: 'الفرع ١',
       address: 'Al-Olaya, Riyadh 12211', vatNo: '300012345600003', cr: '1010123456', nextInvoice: 482, nextCN: 12, nextPay: 92,
@@ -119,7 +114,7 @@ window.SEED = (function () {
       { id: 'u2', name: 'Noura', nameAr: 'نورة', role: 'manager', pin: '1234' },
       { id: 'u3', name: 'Saad', nameAr: 'سعد', role: 'owner', pin: '9999' },
     ],
-    categories, products, customers, invoices, heldBills, orders, suppliers, payments,
+    categories, products, customers, invoices, orders, suppliers, payments,
     audit: [],
   };
 })();

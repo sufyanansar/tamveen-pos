@@ -158,13 +158,12 @@
   function shell(content, opts = {}) {
     const u = user();
     const r = route()[0];
-    const heldN = db.heldBills.length;
     const ordN = db.orders.filter((o) => o.status !== 'completed').length;
     const cashierNav = [
-      ['checkout', 'Checkout'], ['held', 'Held bills', heldN], ['orders', 'Orders', ordN, true], ['invoices', 'Invoices'], ['returns', 'Returns'], ['customers', 'Customers'], ['products', 'Products'],
+      ['checkout', 'Checkout'], ['orders', 'Orders', ordN, true], ['invoices', 'Invoices'], ['returns', 'Returns'], ['customers', 'Customers'], ['products', 'Products'],
     ];
     const mgrNav = [
-      ['checkout', 'Checkout'], ['held', 'Held bills', heldN], ['orders', 'Orders', ordN, true], ['products', 'Products'], ['inventory', 'Inventory'], ['customers', 'Customers & Credit'], ['suppliers', 'Suppliers'], ['invoices', 'Invoices'], ['returns', 'Returns'], ['reports', 'Reports'], ['settings', 'Settings'],
+      ['checkout', 'Checkout'], ['orders', 'Orders', ordN, true], ['products', 'Products'], ['inventory', 'Inventory'], ['customers', 'Customers & Credit'], ['suppliers', 'Suppliers'], ['invoices', 'Invoices'], ['returns', 'Returns'], ['reports', 'Reports'], ['settings', 'Settings'],
     ];
     const nav = (isMgr() ? mgrNav : cashierNav).map(([k, label, badge, lime]) => {
       const on = r === k || (k === 'checkout' && (r === 'pay' || r === 'done')) || (k === 'customers' && r === 'customer') || (k === 'products' && r === 'product') || (k === 'invoices' && r === 'invoice');
@@ -326,7 +325,6 @@
         <div class="pos-total"><span>${t('Total')}</span><b class="num">${money(c.total)} <small>${SAR()}</small></b></div>
         <div class="pos-btns">
           <button class="btn primary" data-a="pay" ${c.count ? '' : 'disabled'}>${t('Settle')} <kbd>F5</kbd></button>
-          <button class="btn" data-a="hold" ${c.count ? '' : 'disabled'}>${t('Hold')} <kbd>F4</kbd></button>
           <button class="btn ghost" data-a="clear" ${c.count ? '' : 'disabled'}>${t('Clear')}</button>
         </div>
       </div>
@@ -592,18 +590,6 @@
       </div>
       <div class="preview"><div class="eyebrow" style="margin-bottom:12px">${t('Preview · 80 mm · bilingual')}</div>${receipt(inv)}</div>
     </div>`;
-  }
-
-  // ---------------------------------------------------------------- views: held bills
-  function viewHeld() {
-    const rows = db.heldBills.map((h) => {
-      const c = calc(h.lines), cu = cust(h.customerId);
-      return `<tr><td><b>${esc(h.label || t('Held bill'))}</b><div class="small muted">${h.id} · ${fmtTime(h.at)} · ${fmtDay(h.at)}</div></td>
-        <td>${cu ? esc(N(cu)) : t('Walk-in')}</td><td>${t('{l} lines', { l: c.count })}</td><td class="r num"><b>${money(c.total)}</b></td>
-        <td class="r"><div class="row" style="justify-content:flex-end"><button class="btn sm primary" data-a="resume" data-id="${h.id}">${t('Resume')}</button><button class="btn sm ghost" data-a="del-held" data-id="${h.id}">${t('Delete')}</button></div></td></tr>`;
-    }).join('');
-    return `<div class="page-h"><div><h1>${t('Held bills')}</h1><div class="sub">${t('Bills parked while a customer steps away. Resuming one puts the current draft on hold.')}</div></div></div>
-      ${rows ? `<div class="tblwrap"><table class="tbl"><thead><tr><th>${t('Bill')}</th><th>${t('Customer')}</th><th>${t('Lines')}</th><th class="r">${t('Total')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="card empty">${t('No held bills.')}</div>`}`;
   }
 
   // ---------------------------------------------------------------- views: orders
@@ -1094,9 +1080,6 @@
           ${isMgr() ? `<label class="row" style="gap:8px"><input type="checkbox" data-in="nc-credit" ${d.credit ? 'checked' : ''} style="width:18px;height:18px;accent-color:#105448">${t('Open a credit account · limit 1,000 SAR, monthly terms')}</label>` : `<p class="small">${t('A manager can open a credit account later.')}</p>`}
           <div class="btns"><button class="btn primary" data-a="nc-save" ${(d.ar || d.en) && d.phone ? '' : 'disabled'}>${t('Save customer')}</button><button class="btn" data-a="close">${t('Cancel')}</button></div>`;
       }
-      case 'hold': return `<h3>${t('Hold this bill')}</h3><p>${t('Park the bill to serve the next customer. Resume it from Held bills.')}</p>
-        <input class="input" data-in="hold-label" data-k="holdl" value="${esc(m.label || '')}" placeholder="${t('Note, e.g. customer went to get wallet')}" autofocus>
-        <div class="btns"><button class="btn primary" data-a="hold-ok">${t('Hold bill')}</button><button class="btn" data-a="close">${t('Cancel')}</button></div>`;
       case 'clear': return `<h3>${t('Clear this draft?')}</h3><p>${t('All lines on the bill will be removed. Nothing has been charged.')}</p><div class="btns"><button class="btn danger" data-a="clear-ok">${t('Clear draft')}</button><button class="btn" data-a="close">${t('Keep bill')}</button></div>`;
       case 'conn': return `${badge('Connection lost', 'red')}<h3>${t("Can't reach the shop server")}</h3>
         <div class="box" style="background:none;padding:0"><div class="between"><span class="row" style="gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:var(--red)"></span>${t('Shop server · Wi-Fi')}</span><b style="color:var(--red)">${t('Lost')}</b></div>
@@ -1191,7 +1174,7 @@
     } else {
       const [r, a] = route();
       const views = {
-        checkout: viewCheckout, pay: viewPay, done: () => viewDone(a), held: viewHeld, orders: viewOrders, invoices: viewInvoices, invoice: () => viewInvoice(a),
+        checkout: viewCheckout, pay: viewPay, done: () => viewDone(a), orders: viewOrders, invoices: viewInvoices, invoice: () => viewInvoice(a),
         returns: viewReturns, customers: viewCustomers, customer: () => viewCustomer(a), products: viewProducts, product: () => viewProduct(a),
         inventory: viewInventory, suppliers: viewSuppliers, barcodes: viewBarcodes, reports: viewReports, settings: viewSettings,
       };
@@ -1321,22 +1304,11 @@
       audit(`Customer created ${d.en || d.ar}`);
       save(); closeModal(); toast(t('Customer saved')); render();
     },
-    hold: () => openModal({ kind: 'hold', label: '' }),
-    'hold-ok': () => {
-      db.heldBills.unshift({ id: 'H' + Date.now().toString().slice(-5), at: new Date().toISOString(), label: ui.modal.label, customerId: ui.cart.customerId, lines: ui.cart.lines });
-      ui.cart = { lines: [], customerId: null, orderId: null }; save(); closeModal(); toast(t('Bill held')); render();
-    },
+
     clear: () => openModal({ kind: 'clear' }),
     'clear-ok': () => { ui.cart = { lines: [], customerId: null, orderId: null }; save(); closeModal(); render(); },
     pay: () => { if (!checkPriceChanges()) return; ui.pay = null; go('pay'); },
     'refresh-bill': () => { ui.cart.lines.forEach((l) => { const p = prod(l.pid); if (p) l.price = p.price; }); save(); closeModal(); toast(t('Bill refreshed with current shelf prices')); render(); },
-    resume: (el) => {
-      const h = db.heldBills.find((x) => x.id === el.dataset.id);
-      if (ui.cart.lines.length) db.heldBills.unshift({ id: 'H' + Date.now().toString().slice(-5), at: new Date().toISOString(), label: t('Auto-held draft'), customerId: ui.cart.customerId, lines: ui.cart.lines });
-      ui.cart = { lines: h.lines.map((l) => Object.assign({ weighted: prod(l.pid) && prod(l.pid).weighted }, l)), customerId: h.customerId, orderId: null };
-      db.heldBills = db.heldBills.filter((x) => x.id !== h.id); save(); go('checkout');
-    },
-    'del-held': (el) => { db.heldBills = db.heldBills.filter((x) => x.id !== el.dataset.id); save(); render(); },
     // payment
     method: (el) => { ui.pay.method = el.dataset.m; render(); },
     quick: (el) => { ui.pay.received = String(el.dataset.v); render(); },
@@ -1361,7 +1333,6 @@
     'order-step': (el) => { const o = db.orders.find((x) => x.id === el.dataset.id); o.status = el.dataset.s === 'prep' ? 'preparing' : 'ready'; save(); render(); },
     'order-load': (el) => {
       const o = db.orders.find((x) => x.id === el.dataset.id);
-      if (ui.cart.lines.length) db.heldBills.unshift({ id: 'H' + Date.now().toString().slice(-5), at: new Date().toISOString(), label: t('Auto-held draft'), customerId: ui.cart.customerId, lines: ui.cart.lines });
       ui.cart = { lines: o.lines.map((l) => Object.assign({ weighted: prod(l.pid) && prod(l.pid).weighted }, l)), customerId: o.customerId, orderId: o.id };
       save(); go('checkout');
     },
@@ -1446,7 +1417,6 @@
     'cust-q': (el) => { ui.modal.q = el.value; rerenderModalKeepFocus(); },
     nc: (el) => { ui.modal.d[el.dataset.f] = el.value; rerenderModalKeepFocus(); },
     'nc-credit': (el) => { ui.modal.d.credit = el.checked; },
-    'hold-label': (el) => { ui.modal.label = el.value; },
     'send-to': (el) => { ui.modal.to = el.value; },
     counted: (el) => { ui.modal.counted = el.value.replace(/[^\d.]/g, ''); rerenderModalKeepFocus(); },
     'rc-prod': (el) => { ui.modal.pid = el.value; ui.modal.pack = prod(el.value).packs.length - 1; renderModal(); },
@@ -1522,7 +1492,7 @@
     if (window.CameraScanner && CameraScanner.isOpen()) return;
     if (!ui.modal && db.session && route()[0] === 'checkout' && /^F[2-5]$/.test(ev.key)) {
       ev.preventDefault();
-      const a = { F2: 'cust-pick', F3: 'browse', F4: 'hold', F5: 'pay' }[ev.key];
+      const a = { F2: 'cust-pick', F3: 'browse', F5: 'pay' }[ev.key];
       const b = document.querySelector(`[data-a="${a}"]:not(:disabled)`); if (b) b.click();
       return;
     }
