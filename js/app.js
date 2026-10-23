@@ -841,6 +841,7 @@
   function formFor(id) {
     if (ui.form && ui.form.id === id) return ui.form;
     const p = id === 'new' ? null : prod(id);
+    ui.trErr = '';
     ui.form = p ? Object.assign(clone(p), { id, price: p.price.toFixed(2), cost: (p.packs.length > 1 ? r2(p.cost * Math.max(...p.packs.map((k) => k.qty))) : p.cost).toFixed(2), vatReason: p.vatReason || '' })
       : { id: 'new', en: '', ar: '', sku: '', cat: 'drinks', brand: '', reorder: 10, price: '', vat: 'standard', vatReason: '', cost: '', unit: 'piece', weighted: false, active: true, fav: false, stock: 0, packs: [{ name: 'Piece', qty: 1, barcode: '', base: true }] };
     return ui.form;
@@ -889,8 +890,10 @@
       <div class="pf">
         <div style="display:flex;flex-direction:column;gap:16px">
           <div class="card"><h2>${t('Basics')}</h2><div class="grid2">
-            <label class="field"><span>${t('Name · Arabic')} <small>(${t('required')})</small></span><input class="input ar ${has('ar') ? 'err' : ''}" dir="rtl" data-in="f" data-f="ar" data-k="far" value="${esc(F.ar)}"></label>
             <label class="field"><span>${t('Name · English')}</span><input class="input" dir="ltr" data-in="f" data-f="en" data-k="fen" value="${esc(F.en)}"></label>
+            <label class="field"><span class="between">${t('Name · Arabic')} <small>(${t('required')})</small><span class="spacer"></span>${F.en ? `<button type="button" class="linkbtn" data-a="translate-name" ${ui.trBusy ? 'disabled' : ''}>${t(ui.trBusy ? 'Translating…' : 'Translate from English')}</button>` : ''}</span>
+              <input class="input ar ${has('ar') ? 'err' : ''}" dir="rtl" data-in="f" data-f="ar" data-k="far" value="${esc(F.ar)}">
+              ${F.arAuto && F.ar ? `<small class="muted">${t('Machine translation. Check it and edit if needed.')}</small>` : ''}${ui.trErr ? `<small style="color:var(--red)">${t(ui.trErr)}</small>` : ''}</label>
             <label class="field"><span>SKU</span><input class="input" data-in="f" data-f="sku" data-k="fsku" value="${esc(F.sku)}"></label>
             <label class="field"><span>${t('Category')}</span><select class="input" data-in="f" data-f="cat" data-k="fcat">${db.categories.filter((c) => c.id !== 'fav').map((c) => `<option value="${c.id}" ${F.cat === c.id ? 'selected' : ''}>${esc(N(c))}</option>`).join('')}</select></label>
             <label class="field"><span>${t('Brand')}</span><input class="input" data-in="f" data-f="brand" data-k="fbrand" value="${esc(F.brand)}" placeholder="[Brand]"></label>
@@ -1192,6 +1195,22 @@
   }
 
   // ---------------------------------------------------------------- render
+  // Suggests the Arabic product name from the English one with the free MyMemory translation API
+  // (no key needed; about 5,000 characters a day per device). Staff can always edit the result.
+  async function translateName(manual) {
+    const F = ui.form; if (!F || !F.en || !F.en.trim()) return;
+    if (!manual && F.ar && !F.arAuto) return;
+    const q = F.en.trim(); ui.trBusy = true; ui.trErr = ''; render();
+    try {
+      const r = await fetch('https://api.mymemory.translated.net/get?langpair=en|ar&q=' + encodeURIComponent(q));
+      const j = await r.json();
+      const ar = j && j.responseData && j.responseData.translatedText;
+      if (!r.ok || !ar || j.responseStatus !== 200 || !/[\u0600-\u06FF]/.test(ar)) throw new Error('bad');
+      if (ui.form === F && F.en.trim() === q && (manual || !F.ar || F.arAuto)) { F.ar = ar.trim(); F.arAuto = true; }
+    } catch (e) { ui.trErr = 'Could not translate right now. Type the Arabic name.'; }
+    ui.trBusy = false; render();
+  }
+
   function render() {
     document.documentElement.lang = lang();
     document.documentElement.dir = isAr() ? 'rtl' : 'ltr';
@@ -1366,6 +1385,7 @@
     'send-ok': () => { const m = ui.modal; const inv = db.invoices.find((i) => i.id === m.invId); const cu = inv && cust(inv.customerId); const to = m.to != null ? m.to : (cu ? cu.phone : ''); if (!to) return toast(t('Enter a phone number or email.'), 'warn'); closeModal(); toast(t('{i} sent by {c} to {to}', { i: `<b>${m.invId}</b>`, c: m.ch || 'WhatsApp', to: esc(to) })); },
     'new-sale': () => go('checkout'),
     // orders
+    'translate-name': () => translateName(true),
     'order-view': (el) => openModal({ kind: 'order', id: el.dataset.id }),
     'order-step': (el) => { const o = db.orders.find((x) => x.id === el.dataset.id); o.status = el.dataset.s === 'prep' ? 'preparing' : 'ready'; save(); render(); if (ui.modal) renderModal(); },
     'order-load': (el) => {
@@ -1434,7 +1454,12 @@
     'pf-ref': (el) => { ui.payForm.ref = el.value; render(); },
     'pf-date': (el) => { ui.payForm.date = el.value; },
     alloc: (el) => { ui.payForm.manual[el.dataset.id] = el.value.replace(/[^\d.]/g, ''); render(); },
-    f: (el) => { ui.form[el.dataset.f] = el.value; render(); },
+    f: (el) => {
+      ui.form[el.dataset.f] = el.value;
+      if (el.dataset.f === 'ar') ui.form.arAuto = false;
+      if (el.dataset.f === 'en' && (!ui.form.ar || ui.form.arAuto)) { clearTimeout(ui.trTimer); ui.trTimer = setTimeout(() => translateName(false), 800); }
+      render();
+    },
     active: (el) => { ui.form.active = el.checked; },
     weighted: (el) => { ui.form.weighted = el.checked; if (el.checked) { ui.form.unit = 'kg'; ui.form.packs[0].name = 'kg'; } render(); },
     fav: (el) => { ui.form.fav = el.checked; },
