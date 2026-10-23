@@ -542,6 +542,8 @@ window.I18N_AR = {
   'Switch camera': 'تبديل الكاميرا',
   'Torch': 'الإضاءة',
   'Done': 'تم',
+  'Menu': 'القائمة',
+  'More': 'المزيد',
   'Bill {a} SAR · {n} items': 'السلة {a} ر.س · {n} أصناف',
   'The camera needs a secure (https) page and a browser that allows camera access.': 'تحتاج الكاميرا صفحة آمنة (https) ومتصفحاً يسمح بالوصول إلى الكاميرا.',
   'Camera permission was blocked. Allow camera access for this site in the browser settings, then try again.': 'تم حظر إذن الكاميرا. اسمح بالوصول إلى الكاميرا لهذا الموقع من إعدادات المتصفح ثم حاول مجدداً.',

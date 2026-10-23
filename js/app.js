@@ -62,6 +62,7 @@
 
   // ---------------------------------------------------------------- icons
   const I = {
+    menu: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
     user: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
     barcode: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 5v14M6 5v14M10 5v14M13 5v14M17 5v14M21 5v14M8 5v14M19 5v14"/></svg>',
     search: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#536B62" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>',
@@ -165,6 +166,7 @@
     const mgrNav = [
       ['checkout', 'Checkout'], ['orders', 'Orders', ordN, true], ['products', 'Products'], ['inventory', 'Inventory'], ['customers', 'Customers & Credit'], ['suppliers', 'Suppliers'], ['invoices', 'Invoices'], ['returns', 'Returns'], ['reports', 'Reports'], ['settings', 'Settings'],
     ];
+    ui.navList = isMgr() ? mgrNav : cashierNav;
     const nav = (isMgr() ? mgrNav : cashierNav).map(([k, label, badge, lime]) => {
       const on = r === k || (k === 'checkout' && (r === 'pay' || r === 'done')) || (k === 'customers' && r === 'customer') || (k === 'products' && r === 'product') || (k === 'invoices' && r === 'invoice');
       return `<a class="nav ${on ? 'on' : ''}" href="#/${k}">${t(label)}${badge ? `<span class="badge ${lime ? 'lime' : ''}">${badge}</span>` : ''}</a>`;
@@ -184,6 +186,7 @@
           <button class="btn sm ghost keep" data-a="sync">${I.sync}${t('Sync now')}</button>
           <button class="btn sm ghost keep" data-a="lang">${isAr() ? 'English' : 'العربية'}</button>
         </div>
+        <button class="btn sm ghost menu-btn" data-a="menu" aria-label="${t('Menu')}">${I.menu}</button>
       </header>
       ${banner}
       <div class="body">
@@ -197,6 +200,10 @@
         </nav>
         <main class="main" id="main">${content}</main>
       </div>
+      <nav class="tabbar" aria-label="${t('Main')}">
+        ${[['checkout', 'Checkout'], ['orders', 'Orders', ordN], ['invoices', 'Invoices']].map(([k, label, b]) => `<a class="${r === k || (k === 'checkout' && (r === 'pay' || r === 'done')) || (k === 'invoices' && r === 'invoice') ? 'on' : ''}" href="#/${k}">${t(label)}${b ? `<span class="badge lime">${b}</span>` : ''}</a>`).join('')}
+        <button data-a="menu">${t('More')}</button>
+      </nav>
     </div>`;
   }
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -312,7 +319,7 @@
     }).join('');
     return `<section class="pos-bill" aria-label="${t('Bill')}">
       <div class="pos-head">
-        <button class="pos-cust" data-a="cust-pick"><span class="ic">${I.user}</span><span><small>${t('Customer')} · F2</small><b>${cu ? esc(N(cu)) : t('Walk-in customer')}</b>${cu && cu.credit ? `<small>${t('Credit available {a} SAR', { a: money(creditAvailable(cu)) })}</small>` : ''}</span></button>
+        <button class="pos-cust" data-a="cust-pick"><span class="ic">${I.user}</span><span><small>${t('Customer')}<span class="kbd-hint"> · F2</span></small><b>${cu ? esc(N(cu)) : t('Walk-in customer')}</b>${cu && cu.credit ? `<small>${t('Credit available {a} SAR', { a: money(creditAvailable(cu)) })}</small>` : ''}</span></button>
         ${cu ? `<button class="linkbtn" data-a="cust-clear">${t('Clear')}</button>` : ''}
         <span class="spacer"></span>
         <div class="pos-meta"><b>${t('Bill · draft')}</b><span>${t('{l} lines · {i} items', { l: c.count, i: r2(c.items) })}</span>${ui.cart.orderId ? `<span class="tag outline">${t('From order {o}', { o: ui.cart.orderId })}</span>` : ''}</div>
@@ -331,6 +338,26 @@
     </section>`;
   }
 
+  function itemBody(l) {
+    const p = prod(l.pid);
+    const gross = r2(l.price * l.qty), net = lineTotal(l), rate = vatRate(l.vat), vat = r2(net - net / (1 + rate));
+    const inCart = ui.cart.lines.filter((x) => x.pid === l.pid).reduce((a, x) => a + x.qty, 0);
+    const kv = (k, v, cls = '') => `<div class="kv ${cls}"><span>${t(k)}</span><b class="num">${v}</b></div>`;
+    return `<div class="item-name">${esc(N(l))}</div><div class="item-sub">${esc(N2(l))}</div>
+      <div class="item-grid">
+        <div>${kv('Sale price', money(l.price) + (l.weighted ? ' /kg' : ''))}${kv('Quantity', qtyFmt(l.qty, l.weighted) + ' ' + esc(t(l.weighted ? 'kg' : cap(l.unit))))}
+          ${kv('Tax %', (rate * 100).toFixed(0) + '%', 'opt')}${kv('Category', p ? esc(N(cat(p.cat))) : '—', 'opt')}${kv('Stock', p ? qtyFmt(r2(p.stock - inCart), p.weighted) : '—', 'opt')}</div>
+        <div>${kv('Total amount', money(gross), 'opt')}${kv('Discount', l.discount ? '−' + money(l.discount) : '0.00')}${kv('Sub total', money(r2(net - vat)), 'opt')}${kv('Tax amount', money(vat), 'opt')}${kv('Product total', money(net), 'strong')}</div>
+      </div>
+      <div class="item-acts">
+        <div class="qty"><button data-a="qty" data-i="${ui.sel}" data-d="-1" aria-label="${t('Decrease')}">−</button>
+          <input data-in="qty" data-i="${ui.sel}" data-k="qty${ui.sel}" value="${qtyFmt(l.qty, l.weighted)}" inputmode="decimal" aria-label="${t('Quantity')}">
+          <button data-a="qty" data-i="${ui.sel}" data-d="1" aria-label="${t('Increase')}">+</button></div>
+        ${l.discount ? '' : `<button class="btn sm" data-a="discount" data-i="${ui.sel}">${t('Discount')}</button>`}
+        <button class="btn sm danger" data-a="remove" data-i="${ui.sel}">${t('Remove')}</button>
+      </div>`;
+  }
+
   // Item panel on the right: the line just scanned (or selected), big enough for the customer to read.
   function itemPanel() {
     const c = calc(ui.cart.lines);
@@ -341,23 +368,7 @@
         <p>${t('Scan a product with the barcode reader. Its details show here and it is added to the bill.')}</p>
         <p class="small">${t('Try scanning')} <button class="linkbtn" data-a="demo-scan" data-code="6281000001011">6281000001011</button> · <button class="linkbtn" data-a="demo-scan" data-code="2100006012507">2100006012507</button> ${t('(scale label, 1.250 kg)')} · <a href="#/barcodes">${t('Test barcode sheet')}</a></p></div>`;
     } else {
-      const p = prod(l.pid);
-      const gross = r2(l.price * l.qty), net = lineTotal(l), rate = vatRate(l.vat), vat = r2(net - net / (1 + rate));
-      const inCart = ui.cart.lines.filter((x) => x.pid === l.pid).reduce((a, x) => a + x.qty, 0);
-      const kv = (k, v, cls = '') => `<div class="kv ${cls}"><span>${t(k)}</span><b class="num">${v}</b></div>`;
-      body = `<div class="item-name">${esc(N(l))}</div><div class="item-sub">${esc(N2(l))}</div>
-        <div class="item-grid">
-          <div>${kv('Sale price', money(l.price) + (l.weighted ? ' /kg' : ''))}${kv('Quantity', qtyFmt(l.qty, l.weighted) + ' ' + esc(t(l.weighted ? 'kg' : cap(l.unit))))}
-            ${kv('Tax %', (rate * 100).toFixed(0) + '%')}${kv('Category', p ? esc(N(cat(p.cat))) : '—')}${kv('Stock', p ? qtyFmt(r2(p.stock - inCart), p.weighted) : '—')}</div>
-          <div>${kv('Total amount', money(gross))}${kv('Discount', l.discount ? '−' + money(l.discount) : '0.00')}${kv('Sub total', money(r2(net - vat)))}${kv('Tax amount', money(vat))}${kv('Product total', money(net), 'strong')}</div>
-        </div>
-        <div class="item-acts">
-          <div class="qty"><button data-a="qty" data-i="${ui.sel}" data-d="-1" aria-label="${t('Decrease')}">−</button>
-            <input data-in="qty" data-i="${ui.sel}" data-k="qty${ui.sel}" value="${qtyFmt(l.qty, l.weighted)}" inputmode="decimal" aria-label="${t('Quantity')}">
-            <button data-a="qty" data-i="${ui.sel}" data-d="1" aria-label="${t('Increase')}">+</button></div>
-          ${l.discount ? '' : `<button class="btn sm" data-a="discount" data-i="${ui.sel}">${t('Discount')}</button>`}
-          <button class="btn sm danger" data-a="remove" data-i="${ui.sel}">${t('Remove')}</button>
-        </div>`;
+      body = itemBody(l);
     }
     return `<section class="pos-item">
       <form class="pos-scan" data-form="scan">
@@ -1023,6 +1034,7 @@
   }
 
   // ---------------------------------------------------------------- modals
+  const isPhone = () => window.matchMedia('(max-width:700px)').matches;
   function openModal(m) { ui.modal = m; renderModal(); }
   function closeModal() { ui.modal = null; renderModal(); }
   function renderModal() {
@@ -1030,7 +1042,7 @@
     if (!el) { el = document.createElement('div'); el.id = 'modal-root'; document.body.appendChild(el); }
     const m = ui.modal;
     if (!m) { el.innerHTML = ''; return; }
-    el.innerHTML = `<div class="overlay" data-a="overlay"><div class="modal ${m.xwide ? 'xwide' : m.wide ? 'wide' : ''} ${m.kind === 'price-changed' ? 'limebg' : ''}" role="dialog" aria-modal="true">${modalBody(m)}</div></div>`;
+    el.innerHTML = `<div class="overlay ${m.sheet ? 'sheet-wrap' : ''}" data-a="overlay"><div class="modal ${m.xwide ? 'xwide' : m.wide ? 'wide' : ''} ${m.kind === 'price-changed' ? 'limebg' : ''} ${m.sheet ? 'sheet' : ''}" role="dialog" aria-modal="true">${modalBody(m)}</div></div>`;
     const f = el.querySelector('[autofocus]'); if (f) f.focus();
   }
   const badge = (txt, cls) => `<span class="tag ${cls}" style="align-self:flex-start">${t(txt)}</span>`;
@@ -1143,6 +1155,20 @@
           <div class="btns"><button class="btn primary" data-a="statement-send" data-id="${c.id}">${t('Send by {r}', { r: c.reminders })}</button><button class="btn" data-a="close">${t('Close')}</button></div>`;
       }
       case 'confirm-reset': return `<h3>${t('Reset demo data?')}</h3><p>${t('All sales, products and customers go back to the sample shop.')}</p><div class="btns"><button class="btn danger" data-a="reset-ok">${t('Reset')}</button><button class="btn" data-a="close">${t('Cancel')}</button></div>`;
+      case 'line': {
+        const l = ui.cart.lines[ui.sel];
+        if (!l) return `<div class="btns one"><button class="btn primary" data-a="close">${t('Done')}</button></div>`;
+        return `<div class="item-card">${itemBody(l)}</div><div class="btns one"><button class="btn primary" data-a="close">${t('Done')}</button></div>`;
+      }
+      case 'menu': {
+        const u = user(), r = route()[0];
+        const links = (ui.navList || []).filter(([k]) => !['checkout', 'orders', 'invoices'].includes(k))
+          .map(([k, label]) => `<a class="menu-link ${r === k ? 'on' : ''}" href="#/${k}" data-a="close">${t(label)}</a>`).join('');
+        return `<div class="menu-who"><b>${esc(isAr() ? u.nameAr : u.name)} · ${t(cap(u.role))}</b><span>${esc(isAr() ? db.settings.shopAr : db.settings.shopEn)} · ${esc(isAr() ? db.settings.branchAr : db.settings.branch)}</span></div>
+          <div class="menu-links">${links}</div>
+          <div class="menu-row"><button class="btn sm ghost" data-a="lang">${isAr() ? 'English' : 'العربية'}</button><button class="btn sm ghost" data-a="sync">${I.sync}${t('Sync now')}</button><button class="btn sm ghost" data-a="menu-demo">${I.flask}${t('Demo controls')}</button></div>
+          <div class="menu-row"><button class="btn sm ghost" data-a="close-shift">${t('Close shift')}</button><button class="btn sm ghost" data-a="switch-user">${t('Lock · switch employee')}</button></div>`;
+      }
       case 'info': return `<h3>${t(m.title)}</h3><p>${t(m.body)}</p><div class="btns one"><button class="btn primary" data-a="close">${t('OK')}</button></div>`;
     }
     return '';
@@ -1179,12 +1205,13 @@
         inventory: viewInventory, suppliers: viewSuppliers, barcodes: viewBarcodes, reports: viewReports, settings: viewSettings,
       };
       app.innerHTML = shell((views[r] || viewCheckout)());
+      if (ui.modal && ui.modal.kind === 'line') { if (ui.cart.lines[ui.sel]) renderModal(); else closeModal(); }
       $('#demo-root').innerHTML = demoPanel();
     }
     if (focusKey) {
-      const el = document.querySelector(`[data-k="${focusKey}"]`);
+      const el = (ui.modal && document.querySelector(`#modal-root [data-k="${focusKey}"]`)) || document.querySelector(`[data-k="${focusKey}"]`);
       if (el) { el.focus(); if (sel && el.setSelectionRange) try { el.setSelectionRange(sel[0], sel[1]); } catch (e) { /* number inputs */ } }
-    } else if (route()[0] === 'checkout' && !ui.modal && db.session && db.session.userId) {
+    } else if (route()[0] === 'checkout' && !ui.modal && !isPhone() && db.session && db.session.userId) {
       const s = $('#scan'); if (s) s.focus({ preventScroll: true });
     }
   }
@@ -1240,6 +1267,7 @@
     },
     close: () => closeModal(),
     overlay: (el, ev) => { if (ev.target === el && ui.modal && ui.modal.kind !== 'terminal') closeModal(); },
+    'menu-demo': () => { closeModal(); ui.demoOpen = true; $('#demo-root').innerHTML = demoPanel(); },
     'demo-toggle': () => { ui.demoOpen = !ui.demoOpen; $('#demo-root').innerHTML = demoPanel(); },
     'demo-open': () => { ui.demoOpen = true; $('#demo-root').innerHTML = demoPanel(); },
     'demo-price': () => {
@@ -1257,7 +1285,8 @@
     },
     'retry-conn': () => { if (ui.demo.server) { closeModal(); toast(t('Connected')); } else toast(t('Still unreachable. Your bill is safe on this device.'), 'bad'); },
     // checkout
-    sel: (el) => { ui.sel = Number(el.dataset.i); render(); },
+    sel: (el) => { ui.sel = Number(el.dataset.i); render(); if (isPhone()) openModal({ kind: 'line', sheet: true }); },
+    menu: () => openModal({ kind: 'menu', sheet: true }),
     browse: () => openModal({ kind: 'browse', wide: true, xwide: true, q: '', cat: 'fav' }),
     'browse-cat': (el) => { ui.modal.cat = el.dataset.id; ui.modal.q = ''; renderModal(); },
     add: (el) => {
