@@ -574,4 +574,16 @@ window.I18N_AR = {
   'Quantity for the next scan': 'الكمية للمسح التالي',
   'Scan a barcode to start the bill.': 'امسح باركود لبدء الفاتورة.',
   'Scan a product with the barcode reader. Its details show here and it is added to the bill.': 'امسح المنتج بقارئ الباركود. تظهر تفاصيله هنا ويُضاف إلى الفاتورة.',
+  // ZATCA e-invoicing
+  'ZATCA e-invoice': 'الفاتورة الإلكترونية (هيئة الزكاة)',
+  'Invoice counter (ICV)': 'عداد الفواتير (ICV)',
+  'Invoice hash': 'تجزئة الفاتورة',
+  'Waiting for the POS service': 'بانتظار خدمة نقطة البيع',
+  'Signed by this device and sent to ZATCA.': 'موقّعة من هذا الجهاز ومرسلة إلى الهيئة.',
+  'Demo only: not signed and not sent to ZATCA. Signing needs the POS service.': 'للعرض فقط: غير موقّعة ولم تُرسل إلى الهيئة. التوقيع يحتاج خدمة نقطة البيع.',
+  'Download XML': 'تنزيل XML',
+  'Rejected': 'مرفوضة',
+  'ZATCA rejected {i}: {e}': 'رفضت الهيئة {i}: {e}',
+  'Synced with ZATCA · {n} still waiting': 'تمت المزامنة مع الهيئة · {n} بالانتظار',
+  'The POS service is not answering': 'خدمة نقطة البيع لا تستجيب',
 };
