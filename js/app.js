@@ -508,6 +508,7 @@
       standard: !!(cu && cu.vatNo),
     };
     db.invoices.unshift(invoice);
+    zatcaIssue(invoice);
     invoice.lines.forEach((l) => { const p = prod(l.pid); if (p) p.stock = r2(Math.max(0, p.stock - l.qty)); });
     if (ui.cart.orderId) { const o = db.orders.find((x) => x.id === ui.cart.orderId); if (o) { o.status = 'completed'; o.invoiceId = invoice.id; } }
     audit(`Sale ${invoice.id} · ${money(c.total)} SAR · ${P.method}`);
@@ -532,8 +533,66 @@
     completeSale();
   }
 
+  // ---------------------------------------------------------------- ZATCA
+  // When the app is served by the POS service (server/), invoices are signed there and reported to ZATCA.
+  // On the static demo there is no service: the app keeps its own invoice chain and QR tags 1–6.
+  function zatcaIssue(inv) {
+    if (!window.ZATCA) return;
+    if (!ui.zatcaLive) { ZATCA.stampAll(db); return; }
+    inv.zlive = true;
+    zatcaSend(inv);
+  }
+  function zatcaSend(inv) {
+    return fetch('api/zatca/invoices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ZATCA.fromApp(inv, db)) })
+      .then((r) => r.json().then((j) => { if (!r.ok) throw new Error(j.error || r.status); return j; }))
+      .then((rec) => {
+        Object.assign(inv, { uuid: rec.uuid, icv: rec.icv, zhash: rec.hash, zqr: rec.qr, zwarn: rec.warnings, zerr: rec.errors,
+          zatca: { reported: 'reported', cleared: 'reported', pending: 'queued', rejected: 'rejected' }[rec.status] || 'queued' });
+        if (rec.status === 'rejected') toast(t('ZATCA rejected {i}: {e}', { i: inv.id, e: esc((rec.errors || []).join(' · ')) }), 'bad');
+      })
+      .catch(() => { inv.zatca = 'offline'; })
+      .then(() => { save(); render(); });
+  }
+  // Receipts the POS service has not signed yet (it was not answering when they were made). Sent one at a time,
+  // oldest first; the service returns the stored result for an id it already has, so resending is safe.
+  let zatcaFlushing = null;
+  function zatcaFlush() {
+    if (!ui.zatcaLive) return Promise.resolve();
+    if (zatcaFlushing) return zatcaFlushing;
+    const waiting = db.invoices.filter((i) => i.zlive && !i.zqr);
+    zatcaFlushing = waiting.reduce((p, inv) => p.then(() => zatcaSend(inv)), Promise.resolve()).then(() => { zatcaFlushing = null; });
+    return zatcaFlushing;
+  }
+  function zatcaDetect() {
+    // GitHub Pages never has the service; skip the request there.
+    if (!window.ZATCA || !window.fetch || /\.github\.io$/.test(location.hostname)) return;
+    fetch('api/zatca/status', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((s) => {
+      if (!s || !s.onboarded) return;
+      ui.zatcaLive = s; render();
+      zatcaFlush();
+      setInterval(zatcaFlush, 60 * 1000);
+      window.addEventListener('online', zatcaFlush);
+    }).catch(() => { /* static demo: no service */ });
+  }
+  function zatcaDownload(inv) {
+    if (ui.zatcaLive && inv.zlive && inv.zqr) { window.open('api/zatca/invoices/' + encodeURIComponent(inv.id) + '/xml', '_blank'); return; }
+    const url = URL.createObjectURL(new Blob([ZATCA.appXML(inv, db)], { type: 'application/xml' }));
+    const a = document.createElement('a'); a.href = url; a.download = inv.id + '.xml'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  function zatcaInfo(inv) {
+    if (!window.ZATCA) return '';
+    if (!inv.uuid && !ui.zatcaLive) ZATCA.stampAll(db);
+    const signed = !!inv.zqr;
+    const row = (k, v) => `<div class="between small"><span class="muted">${t(k)}</span><span class="num" style="word-break:break-all;text-align:end">${esc(v)}</span></div>`;
+    return `<div class="panel" style="display:flex;flex-direction:column;gap:6px"><div class="between"><span class="eyebrow">${t('ZATCA e-invoice')}</span><span class="tag ${signed ? '' : 'amber'}">${t(signed ? 'Signed' : 'Demo')}</span></div>
+      ${inv.uuid ? row('UUID', inv.uuid) + row('Invoice counter (ICV)', String(inv.icv)) + row('Invoice hash', inv.zhash || '') : row('Status', t('Waiting'))}
+      ${(inv.zerr || []).map((e) => `<div class="small" style="color:var(--red)">${esc(e)}</div>`).join('')}${(inv.zwarn || []).map((e) => `<div class="small" style="color:var(--amber)">${esc(e)}</div>`).join('')}</div>`;
+  }
+
   // ---------------------------------------------------------------- receipt
   function zatcaTLV(inv) {
+    if (window.ZATCA) return ZATCA.appQR(inv, db, !!ui.zatcaLive);
     const enc = new TextEncoder();
     const fields = [db.settings.shopEn, db.settings.vatNo, inv.date.replace(/\.\d+Z$/, 'Z'), money(inv.total).replace(/,/g, ''), money(invVat(inv)).replace(/,/g, '')];
     const bytes = [];
@@ -636,7 +695,7 @@
     const m = { paid: ['Paid', 'lime'], unpaid: ['Unpaid', 'amber'], partial: ['Part paid', 'amber'], returned: ['Returned', 'outline'] }[i.status] || [i.status, ''];
     return `<span class="tag ${m[1]}">${t(m[0])}</span>`;
   }
-  function zTag(z) { return `<span class="tag ${z === 'reported' ? '' : 'amber'}">${t({ reported: 'Reported', queued: 'Queued', offline: 'Offline' }[z] || z)}</span>`; }
+  function zTag(z) { return `<span class="tag ${z === 'reported' ? '' : 'amber'}">${t({ reported: 'Reported', queued: 'Queued', offline: 'Offline', rejected: 'Rejected' }[z] || z)}</span>`; }
   function viewInvoices() {
     const q = ui.invQ.trim().toLowerCase();
     const list = db.invoices.filter((i) => {
@@ -659,7 +718,7 @@
     const cns = db.invoices.filter((x) => x.type === 'credit_note' && x.ref === inv.id);
     return `<div class="crumbs"><a href="#/invoices">${t('Invoices')}</a> / ${inv.id}</div>
       <div class="page-h"><div><h1>${inv.id}</h1><div class="sub">${fmtDate(inv.date)} ${fmtTime(inv.date)} · ${cu ? esc(N(cu)) : t('Walk-in customer')} · ${t('Cashier')} ${esc(inv.cashier || '-')}</div></div>
-        <div class="row" style="flex-wrap:wrap"><button class="btn sm" data-a="print" data-id="${inv.id}">${I.print}${t('Print')}</button><button class="btn sm" data-a="send" data-id="${inv.id}">${I.send}${t('Send')}</button>
+        <div class="row" style="flex-wrap:wrap"><button class="btn sm" data-a="print" data-id="${inv.id}">${I.print}${t('Print')}</button><button class="btn sm" data-a="send" data-id="${inv.id}">${I.send}${t('Send')}</button><button class="btn sm" data-a="zatca-xml" data-id="${inv.id}">XML</button>
         ${inv.type === 'sale' ? `<button class="btn sm primary" data-a="start-return" data-id="${inv.id}">${t('Return')}</button>` : ''}</div></div>
       <div class="done-grid">
         <div style="display:flex;flex-direction:column;gap:14px">
@@ -672,6 +731,7 @@
           ${cns.length ? `<div class="note">${I.info}<span>${t('Linked credit notes:')} ${cns.map((x) => `<a href="#/invoice/${x.id}">${x.id}</a> (−${money(x.total)})`).join(', ')}</span></div>` : ''}
           <div class="tblwrap"><table class="tbl"><thead><tr><th>${t('Item')}</th><th class="r">${t('Qty')}</th><th class="r">${t('Price')}</th><th class="r">${t('Discount')}</th><th class="r">${t('Total')}</th></tr></thead>
             <tbody>${inv.lines.map((l) => `<tr><td>${esc(N(l))}<div class="small muted">${esc(N2(l))}</div></td><td class="r num">${qtyFmt(l.qty, l.weighted)}</td><td class="r num">${money(l.price)}</td><td class="r num">${l.discount ? '−' + money(l.discount) : '—'}</td><td class="r num"><b>${money(lineTotal(l))}</b></td></tr>`).join('')}</tbody></table></div>
+          ${zatcaInfo(inv)}
         </div>
         <div class="preview"><div class="eyebrow" style="margin-bottom:12px">${t('Preview · 80 mm · bilingual')}</div>${receipt(inv)}</div>
       </div>`;
@@ -722,6 +782,7 @@
     const cn = { id: 'CN-B1-' + String(no).padStart(6, '0'), no, type: 'credit_note', ref: inv.id, reason: R.reason, date: new Date().toISOString(), customerId: inv.customerId, lines, total,
       payments: [{ method: R.method, amount: total }], change: 0, status: 'paid', outstanding: 0, zatca: ui.demo.server && ui.demo.internet ? 'queued' : 'offline', cashier: user().name };
     db.invoices.unshift(cn);
+    zatcaIssue(cn);
     lines.forEach((l) => { const p = prod(l.pid); if (p) p.stock = r2(p.stock + l.qty); });
     if (R.method === 'balance') { inv.outstanding = r2(Math.max(0, inv.outstanding - total)); if (inv.outstanding === 0) inv.status = 'paid'; }
     audit(`Credit note ${cn.id} for ${inv.id} · ${money(total)} SAR`);
@@ -1415,6 +1476,11 @@
     reset: () => openModal({ kind: 'confirm-reset' }),
     'reset-ok': () => { const s = db.session, l = db.settings.lang; db = clone(SEED); db.session = s; db.settings.lang = l; ui.cart = { lines: [], customerId: null, orderId: null }; ui.form = null; ui.pay = null; ui.ret = null; save(); closeModal(); toast(t('Demo data reset')); go('checkout'); },
     sync: () => {
+      if (ui.zatcaLive) {
+        return zatcaFlush().then(() => fetch('api/zatca/retry', { method: 'POST' })).then((r) => r.json())
+          .then((r) => toast(t('Synced · {n} waiting', { n: r.stillPending || 0 })))
+          .catch(() => toast(t('Service offline'), 'bad'));
+      }
       if (!ui.demo.server) return openModal({ kind: 'conn' });
       if (!ui.demo.internet) return toast(t('Internet is offline. Queued invoices will report when it returns.'), 'warn');
       const q = db.invoices.filter((i) => i.zatca === 'queued' || i.zatca === 'offline');
@@ -1526,6 +1592,7 @@
     },
     // invoices
     'inv-filter': (el) => { ui.invFilter = el.dataset.f; render(); },
+    'zatca-xml': (el) => zatcaDownload(db.invoices.find((i) => i.id === el.dataset.id)),
     'open-inv': (el, ev) => { if (ev.target.closest('a')) return; go('invoice/' + el.dataset.id); },
     'start-return': (el) => { const inv = db.invoices.find((i) => i.id === el.dataset.id); ui.ret = { invId: inv.id, qty: {}, reason: 'Damaged or expired', method: inv.outstanding > 0 ? 'balance' : (inv.payments[0] && inv.payments[0].method === 'card' ? 'card' : 'cash') }; go('returns'); },
     'ret-qty': (el) => { const R = ui.ret; const i = el.dataset.i; const inv = db.invoices.find((x) => x.id === R.invId); const step = inv.lines[i].weighted ? 0.25 : 1; R.qty[i] = Math.max(0, r2(Number(R.qty[i] || 0) + step * Number(el.dataset.d))); render(); },
@@ -1717,4 +1784,5 @@
   window.addEventListener('hashchange', () => { if (route()[0] !== 'product') ui.form = null; if (route()[0] !== 'returns') ui.ret = null; window.scrollTo(0, 0); render(); });
 
   render();
+  zatcaDetect();
 })();
