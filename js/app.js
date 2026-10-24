@@ -1168,7 +1168,7 @@
         <div style="display:flex;flex-direction:column;gap:16px">
           <div class="card"><h2>${t('Language')}</h2><div class="row"><button class="pill outline ${!isAr() ? 'on' : ''}" data-a="set-lang" data-l="en">English</button><button class="pill outline ${isAr() ? 'on' : ''}" data-a="set-lang" data-l="ar">العربية</button></div></div>
           <div class="card"><h2>${t('Employees')}</h2><div class="list" style="max-height:none">${db.users.map((u) => `<div class="between" style="padding:8px 0;border-bottom:1px solid var(--line)"><span><b>${esc(isAr() ? u.nameAr : u.name)}</b> · ${t(cap(u.role))}</span><span class="small muted">PIN ${u.pin}</span></div>`).join('')}</div></div>
-          <div class="card"><h2>${t('Scanning')}</h2><label class="field"><span>${t('OCR server')}</span><input class="input" dir="ltr" data-in="setting" data-f="ocrUrl" data-k="socrUrl" value="${esc(s.ocrUrl)}" inputmode="url"></label></div>
+          <div class="card"><h2>${t('Scanning')}</h2><label class="field"><span>${t('OCR server')}</span><input class="input" dir="ltr" id="ocr-url" data-k="socrUrl" value="${esc(s.ocrUrl)}" inputmode="url"></label><button class="btn primary" data-a="save-ocr" style="margin-top:10px">${t('Save')}</button></div>
           <div class="card"><h2>${t('Demo data')}</h2><button class="btn danger" data-a="reset">${t('Reset demo data')}</button></div>
         </div>
       </div>`;
@@ -1410,6 +1410,7 @@
 
   const actions = {
     lang: () => { db.settings.lang = isAr() ? 'en' : 'ar'; save(); render(); },
+    'save-ocr': () => { db.settings.ocrUrl = $('#ocr-url').value.trim(); save(); toast(t('Saved')); },
     'set-lang': (el) => { db.settings.lang = el.dataset.l; save(); render(); },
     'toggle-pw': () => { const p = $('#pw'); p.type = p.type === 'password' ? 'text' : 'password'; },
     forgot: () => openModal({ kind: 'info', title: 'Forgot password?', body: 'Ask the owner or manager to reset it.' }),
