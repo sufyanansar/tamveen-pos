@@ -976,7 +976,7 @@
   // Photo → DeepSeek-OCR-2 server if set, else in-browser OCR (Tesseract.js) → lines matched by barcode or saved supplier code, the rest searched or removed → review → add to stock.
   const RC_SAMPLE = 'ALMARAI CO.\nDELIVERY NOTE DN-55821 24/10/2026\nCode Item Qty Price Total\n6281000001028 Fresh Milk 1L Carton 4 CTN 62.40 249.60\nAL-220 Laban 1L 24 4.40 105.60\nWHT CHEESE 500G x1O 14.30 143.00\n6281000007013 Orange Juice 1.4L 12 8.20 98.40\nYoghurt Cup 170g 24 1.50 36.00\nSubtotal 632.60 VAT 15% 94.89\nTotal SAR 727.49';
   const RC_MEMORY = { 's1|AL-220': 'p9' };
-  const RC_SKIP = /\b(sub ?total|total|vat|tax|date|invoice|purchase order|delivery note|received|thank|items|tel|phone|code item|barcode description)\b|المجموع|الاجمالي|ضريبه|فاتوره|التاريخ|الصنف|الكميه|سند استلام|الرقم الضريبي/i; // Arabic as normalized by rcArNorm
+  const RC_SKIP = /\b(sub ?total|total|vat|tax|date|invoice|purchase order|delivery note|received|thank|items|tel|phone|code item|barcode description)\b|المجموع|الاجمالي|ضريبه|فاتوره|التاريخ|الصنف|الكميه|سند استلام|رقم/i; // Arabic as normalized by rcArNorm
   const RC_UNIT = /^(bag|btl|box|can|pcs?|ea|ctn|cartons?|pk|pack|kg|unit|x|كيس|عبوه|علبه|حبه|حبات|كرتون|كرتونه|صندوق|ربطه|باكيت|قطعه)$/i;
   const RC_SIZE = { كجم: 'kg', كغ: 'kg', كيلو: 'kg', جم: 'g', غ: 'g', جرام: 'g', مل: 'ml', لتر: 'l', ل: 'l', kg: 'kg', g: 'g', ml: 'ml', l: 'l', ltr: 'l' };
   const RC_ABBR = { pst: 'paste', chkn: 'chicken', inst: 'instant', jce: 'juice', wtr: 'water', wht: 'white', gr: 'green', bg: 'bags', pk: 'pack', ltr: 'l' };
@@ -984,8 +984,8 @@
   const rcDigits = (s) => String(s).replace(/[٠-٩]/g, (d) => d.charCodeAt(0) - 0x660).replace(/[۰-۹]/g, (d) => d.charCodeAt(0) - 0x6F0).replace(/٫/g, '.').replace(/٬/g, ',');
   const rcArNorm = (s) => s.replace(/[ً-ٰٟـ]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي');
   function rcParse(raw) {
-    const line = rcArNorm(rcDigits(raw)).replace(/\s+/g, ' ').trim();
-    if (!line || RC_SKIP.test(line)) return null;
+    const line = rcDigits(raw).replace(/\s+/g, ' ').trim();
+    if (!line || RC_SKIP.test(rcArNorm(line))) return null;
     // OCR often reads 0 as O and 1 as l inside numbers.
     const toks = line.split(' ').map((tk) => (/\d/.test(tk) && /^[xX]?[\dOoIl.,]+$/.test(tk) ? tk.replace(/[Oo]/g, '0').replace(/[Il]/g, '1') : tk));
     let barcode = null, code = null, qty = null;
@@ -999,13 +999,13 @@
         if (i === 0 && /^\d{1,3}$/.test(tk)) return;
         const nx = toks[i + 1], sz = nx && RC_SIZE[rcArNorm(nx).toLowerCase()];
         if (sz) { words.push(tk.replace(',', '.') + sz); toks[i + 1] = null; return; }
-        if (/^\d+$/.test(tk) && words.length && nx && /^([a-z]{3,}|[ء-ي]{3,})$/i.test(nx) && !RC_UNIT.test(nx)) { words.push(tk); return; }
+        if (/^\d+$/.test(tk) && words.length && nx && /^[a-z]{3,}$/i.test(nx) && !RC_UNIT.test(nx)) { words.push(tk); return; }
         nums.push(tk.replace(',', '.')); return;
       }
-      if (RC_UNIT.test(tk)) return;
+      if (RC_UNIT.test(rcArNorm(tk))) return;
       if (/[a-zء-ي]/i.test(tk)) words.push(tk);
     });
-    const ints = nums.filter((n) => /^\d+$/.test(n));
+    const ints = nums.filter((n) => /^\d{1,5}$/.test(n));
     if (qty == null && ints.length) qty = +ints[0];
     if (qty == null || !words.length) return null;
     return { desc: words.join(' '), barcode, code, qty };
@@ -1020,7 +1020,7 @@
     if (mem[key] && prod(mem[key])) return { pid: mem[key], mult: 1, level: 'exact', why: 'Saved' };
     return { pid: '', mult: 1, level: 'none', why: '' };
   }
-  const rcOpt = (p) => [N(p)].concat(p.packs.map((k) => k.barcode).filter(Boolean)).join(' · ');
+  const rcOpt = (p) => [p.en, p.ar].concat(p.packs.map((k) => k.barcode).filter(Boolean)).join(' · ');
   function rcRead(text) {
     const R = ui.rcv;
     R.lines = text.split(/\r?\n/).map(rcParse).filter(Boolean).map((l) => {
@@ -1074,7 +1074,7 @@
     const rows = R.lines.map((l, i) => {
       const p = prod(l.pid);
       return `<tr><td class="num">${esc([l.barcode, l.code].filter(Boolean).join(' · ') || '—')}</td>
-        <td>${p ? `<b>${esc(N(p))}</b> <span class="tag">${esc(t(l.why))}</span>` : `<input class="input" type="search" list="rc-prods" data-in="rc-find" data-i="${i}" data-k="rcf${i}" aria-label="${t('Product')}">`}</td>
+        <td>${p ? `<b>${esc(N(p))}</b> <span class="tag">${esc(t(l.why))}</span>` : `<input class="input" type="search" list="rc-prods" data-in="rc-find" data-i="${i}" data-k="rcf${i}" value="${esc(l.desc)}" aria-label="${t('Product')}">`}</td>
         <td><input class="input num" style="width:80px" data-in="rcv-qty" data-i="${i}" data-k="rcq${i}" value="${l.qty}" inputmode="decimal"></td>
         <td class="r num">${after(l, p)}</td>
         <td class="r"><button class="btn sm ghost" data-a="rc-del" data-i="${i}" aria-label="${t('Remove')}">×</button></td></tr>`;
