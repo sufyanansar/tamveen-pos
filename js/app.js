@@ -988,7 +988,7 @@
     if (!line || RC_SKIP.test(rcArNorm(line))) return null;
     // OCR often reads 0 as O and 1 as l inside numbers.
     const toks = line.split(' ').map((tk) => (/\d/.test(tk) && /^[xX]?[\dOoIl.,]+$/.test(tk) ? tk.replace(/[Oo]/g, '0').replace(/[Il]/g, '1') : tk));
-    let barcode = null, code = null, qty = null;
+    let barcode = null, code = null, qty = null, unitQty = null;
     const nums = [], words = [];
     toks.forEach((tk, i) => {
       if (tk === null) return;
@@ -1000,13 +1000,14 @@
         const nx = toks[i + 1], sz = nx && RC_SIZE[rcArNorm(nx).toLowerCase()];
         if (sz) { words.push(tk.replace(',', '.') + sz); toks[i + 1] = null; return; }
         if (/^\d+$/.test(tk) && words.length && nx && /^[a-z]{3,}$/i.test(nx) && !RC_UNIT.test(nx)) { words.push(tk); return; }
+        if (/^\d{1,5}$/.test(tk) && nx && RC_UNIT.test(rcArNorm(nx))) unitQty = +tk; // the count printed just before a unit wins
         nums.push(tk.replace(',', '.')); return;
       }
       if (RC_UNIT.test(rcArNorm(tk))) return;
       if (/[a-zء-ي]/i.test(tk)) words.push(tk);
     });
     const ints = nums.filter((n) => /^\d{1,5}$/.test(n));
-    if (qty == null && ints.length) qty = +ints[0];
+    if (qty == null) qty = unitQty != null ? unitQty : ints.length ? +ints[0] : null;
     if (qty == null || !words.length) return null;
     return { desc: words.join(' '), barcode, code, qty };
   }
