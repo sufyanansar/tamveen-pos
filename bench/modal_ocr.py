@@ -33,7 +33,8 @@ def clean(text):
     text = re.sub(r'</tr>|<br\s*/?>', '\n', text)
     text = re.sub(r'</t[dh]>', ' ', text)
     text = re.sub(r'<[^>]+>', '', text)
-    text = text.replace('|', ' ')
+    text = re.sub(r'^\s*[-:| ]{3,}\s*$', '', text, flags=re.M)
+    text = re.sub(r'[|#*`]+', ' ', text)
     return '\n'.join(re.sub(r'[ \t]+', ' ', l).strip() for l in text.splitlines() if l.strip())
 
 

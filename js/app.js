@@ -1054,10 +1054,12 @@
       if (m.status === 'recognizing text') rcPct(from + (100 - from) * m.progress);
     } })).then((r) => rcRead(r.data.text, 'Tesseract')).catch(() => { R.busy = false; R.status = t('Could not read the photo.') + (R.err ? ' · OCR server: ' + R.err : ''); render(); });
   }
-  // DeepSeek-OCR-2 on the OCR server set in Settings (bench/deepseek_ocr2_colab.ipynb).
+  // DeepSeek-OCR-2 on Modal (bench/modal_ocr.py) unless Settings names another server; old Colab tunnel addresses are stale.
+  const RC_OCR_URL = 'https://sufyanansar2873--tamveen-ocr-ocr-web.us-east.modal.run';
+  const rcOcrUrl = () => { const u = String(db.settings.ocrUrl == null ? RC_OCR_URL : db.settings.ocrUrl).trim(); return /trycloudflare\.com/.test(u) ? RC_OCR_URL : u; };
   // Progress runs smoothly to 60% over ~15s, then creeps toward 95% until the server answers.
   function rcServer(file) {
-    const R = ui.rcv, base = String(db.settings.ocrUrl || '').trim().replace(/\/+$/, '');
+    const R = ui.rcv, base = rcOcrUrl().replace(/\/+$/, '');
     if (!base) return Promise.reject('none');
     const t0 = Date.now();
     R.timer = setInterval(() => {
@@ -1067,7 +1069,7 @@
     const fd = new FormData(); fd.append('file', file);
     return fetch(base + '/ocr', { method: 'POST', body: fd, headers: { 'ngrok-skip-browser-warning': '1' } })
       .then((r) => (r.ok ? r.json() : r.text().then((x) => Promise.reject(new Error('HTTP ' + r.status + ' ' + x.slice(0, 120))))))
-      .then((j) => rcRead(String(j.text || ''), 'DeepSeek-OCR-2', Math.round((Date.now() - t0) / 1000)))
+      .then((j) => rcRead(String(j.text || '').replace(/^\s*[-:| ]{3,}\s*$/gm, '').replace(/[#*`]+/g, ' '), 'DeepSeek-OCR-2', Math.round((Date.now() - t0) / 1000)))
       .catch((e) => { R.err = (e && e.message) || String(e); R.errSecs = Math.round((Date.now() - t0) / 1000); console.error('OCR server', base, e); throw e; });
   }
   function rcPhoto(file) {
@@ -1176,7 +1178,7 @@
         <div style="display:flex;flex-direction:column;gap:16px">
           <div class="card"><h2>${t('Language')}</h2><div class="row"><button class="pill outline ${!isAr() ? 'on' : ''}" data-a="set-lang" data-l="en">English</button><button class="pill outline ${isAr() ? 'on' : ''}" data-a="set-lang" data-l="ar">العربية</button></div></div>
           <div class="card"><h2>${t('Employees')}</h2><div class="list" style="max-height:none">${db.users.map((u) => `<div class="between" style="padding:8px 0;border-bottom:1px solid var(--line)"><span><b>${esc(isAr() ? u.nameAr : u.name)}</b> · ${t(cap(u.role))}</span><span class="small muted">PIN ${u.pin}</span></div>`).join('')}</div></div>
-          <div class="card"><h2>${t('Scanning')}</h2><label class="field"><span>${t('OCR server')}</span><input class="input" dir="ltr" id="ocr-url" data-k="socrUrl" value="${esc(s.ocrUrl)}" inputmode="url"></label><button class="btn primary" data-a="save-ocr" style="margin-top:10px">${t('Save')}</button></div>
+          <div class="card"><h2>${t('Scanning')}</h2><label class="field"><span>${t('OCR server')}</span><input class="input" dir="ltr" id="ocr-url" data-k="socrUrl" value="${esc(rcOcrUrl())}" inputmode="url"></label><button class="btn primary" data-a="save-ocr" style="margin-top:10px">${t('Save')}</button></div>
           <div class="card"><h2>${t('Demo data')}</h2><button class="btn danger" data-a="reset">${t('Reset demo data')}</button></div>
         </div>
       </div>`;
