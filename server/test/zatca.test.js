@@ -115,6 +115,14 @@ test('onboard, issue a chain of invoices, never sign twice, queue and retry when
     assert.deepStrictEqual(r, { tried: 1, stillPending: 0 });
     assert.strictEqual(svc.record('INV-3').status, 'reported');
 
+    // A new receipt reaching ZATCA also sends the ones still waiting, without waiting for the timer.
+    z.setDown(true);
+    assert.strictEqual((await svc.issue(doc('INV-5'))).status, 'pending');
+    z.setDown(false);
+    assert.strictEqual((await svc.issue(doc('INV-6'))).status, 'reported');
+    await new Promise((r) => setTimeout(r, 300));
+    assert.strictEqual(svc.record('INV-5').status, 'reported');
+
     await assert.rejects(svc.issue(doc('INV-4', { seller: { vat: '311111111111113' } })), /Seller VAT/);
   } finally { z.srv.close(); }
 });

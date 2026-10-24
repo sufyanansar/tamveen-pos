@@ -51,7 +51,7 @@ function service(config) {
     return rec;
   }
 
-  return {
+  const self = {
     config, db,
     status() {
       const e = db.egs(), c = chain(), all = db.invoices();
@@ -80,6 +80,10 @@ function service(config) {
         db.saveInvoice(rec);
         db.saveChain({ icv: rec.icv, pih: rec.hash });
         return publicRecord(await submit(rec));
+      }).then((out) => {
+        // ZATCA answered, so send anything still waiting from when it did not, without waiting for the timer.
+        if (out.status !== 'pending' && db.invoices().some((r) => r.status === 'pending')) self.retryPending().catch(() => {});
+        return out;
       });
     },
 
@@ -143,6 +147,7 @@ function service(config) {
       });
     },
   };
+  return self;
 }
 
 // The sample documents ZATCA wants to see before it issues a production CSID: one of each invoice kind

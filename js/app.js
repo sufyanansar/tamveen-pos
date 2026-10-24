@@ -551,12 +551,25 @@
       .catch(() => { inv.zatca = 'offline'; })
       .then(() => { save(); render(); });
   }
+  // Receipts the POS service has not signed yet (it was not answering when they were made). Sent one at a time,
+  // oldest first; the service returns the stored result for an id it already has, so resending is safe.
+  let zatcaFlushing = null;
+  function zatcaFlush() {
+    if (!ui.zatcaLive) return Promise.resolve();
+    if (zatcaFlushing) return zatcaFlushing;
+    const waiting = db.invoices.filter((i) => i.zlive && !i.zqr);
+    zatcaFlushing = waiting.reduce((p, inv) => p.then(() => zatcaSend(inv)), Promise.resolve()).then(() => { zatcaFlushing = null; });
+    return zatcaFlushing;
+  }
   function zatcaDetect() {
     // GitHub Pages never has the service; skip the request there.
     if (!window.ZATCA || !window.fetch || /\.github\.io$/.test(location.hostname)) return;
     fetch('api/zatca/status', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((s) => {
       if (!s || !s.onboarded) return;
       ui.zatcaLive = s; render();
+      zatcaFlush();
+      setInterval(zatcaFlush, 60 * 1000);
+      window.addEventListener('online', zatcaFlush);
     }).catch(() => { /* static demo: no service */ });
   }
   function zatcaDownload(inv) {
@@ -1353,8 +1366,7 @@
     'reset-ok': () => { const s = db.session, l = db.settings.lang; db = clone(SEED); db.session = s; db.settings.lang = l; ui.cart = { lines: [], customerId: null, orderId: null }; ui.form = null; ui.pay = null; ui.ret = null; save(); closeModal(); toast(t('Demo data reset')); go('checkout'); },
     sync: () => {
       if (ui.zatcaLive) {
-        const resend = db.invoices.filter((i) => i.zlive && !i.zqr);
-        return Promise.all(resend.map(zatcaSend)).then(() => fetch('api/zatca/retry', { method: 'POST' })).then((r) => r.json())
+        return zatcaFlush().then(() => fetch('api/zatca/retry', { method: 'POST' })).then((r) => r.json())
           .then((r) => toast(t('Synced with ZATCA · {n} still waiting', { n: r.stillPending || 0 })))
           .catch(() => toast(t('The POS service is not answering'), 'bad'));
       }

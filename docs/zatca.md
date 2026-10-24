@@ -25,8 +25,13 @@ signed or sent, and the QR has tags 1–6 only.
    secp256k1 key, adds the XAdES signature and the QR with all 9 tags (`server/lib/signer.js`).
 4. It saves the signed invoice and moves the chain on. Only then does it send the invoice to ZATCA: simplified (B2C)
    invoices go to `/invoices/reporting/single`, standard (B2B) invoices to `/invoices/clearance/single`.
-5. If ZATCA or the internet is down, the invoice stays `pending`. The service retries every 5 minutes, and the app's
-   **Sync now** button retries right away. Sending the same invoice twice returns the first result; nothing is signed twice.
+5. Every receipt is sent the moment it is created; nobody has to press anything.
+   - If the POS service does not answer, the app keeps the receipt and sends it again every minute and when the
+     browser comes back online.
+   - If ZATCA or the internet is down, the invoice stays `pending` in the service. It is sent again as soon as any
+     newer receipt gets through to ZATCA, and every 5 minutes in any case.
+   - **Sync now** does all of this right away. Sending the same invoice twice returns the first result; nothing is
+     signed twice.
 
 Credit notes from **Returns** go the same way (type 381, linked to the original invoice, with the reason).
 
