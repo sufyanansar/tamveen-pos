@@ -1,5 +1,6 @@
 // Arabic UI strings, keyed by the English text used in app.js.
 window.I18N_AR = {
+  'Filter': 'تصفية',
   'Receive stock': 'استلام البضاعة',
   'Scan delivery': 'مسح التوريد',
   'Photo': 'صورة',
