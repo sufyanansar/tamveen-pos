@@ -1038,7 +1038,7 @@
       return Object.assign(l, m, { on: !!m.pid, qty: r2(l.qty * m.mult) });
     });
     clearInterval(R.timer);
-    R.busy = false; R.status = t('{n} lines', { n: R.lines.length }) + ' · ' + engine + (secs ? ' · ' + secs + 's' : ''); render();
+    R.busy = false; R.status = t('{n} lines', { n: R.lines.length }) + ' · ' + engine + (secs ? ' · ' + secs + 's' : '') + (R.err ? ' · OCR server failed after ' + R.errSecs + 's: ' + R.err : ''); render();
   }
   function rcLoadTess() {
     if (window.Tesseract) return Promise.resolve();
@@ -1052,7 +1052,7 @@
     const R = ui.rcv; clearInterval(R.timer); const from = R.pct || 0;
     rcLoadTess().then(() => window.Tesseract.recognize(R.img, 'eng', { logger: (m) => {
       if (m.status === 'recognizing text') rcPct(from + (100 - from) * m.progress);
-    } })).then((r) => rcRead(r.data.text, 'Tesseract')).catch(() => { R.busy = false; R.status = t('Could not read the photo.'); render(); });
+    } })).then((r) => rcRead(r.data.text, 'Tesseract')).catch(() => { R.busy = false; R.status = t('Could not read the photo.') + (R.err ? ' · OCR server: ' + R.err : ''); render(); });
   }
   // DeepSeek-OCR-2 on the OCR server set in Settings (bench/deepseek_ocr2_colab.ipynb).
   // Progress runs smoothly to 60% over ~15s, then creeps toward 95% until the server answers.
@@ -1066,12 +1066,13 @@
     }, 250);
     const fd = new FormData(); fd.append('file', file);
     return fetch(base + '/ocr', { method: 'POST', body: fd, headers: { 'ngrok-skip-browser-warning': '1' } })
-      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-      .then((j) => rcRead(String(j.text || ''), 'DeepSeek-OCR-2', Math.round((Date.now() - t0) / 1000)));
+      .then((r) => (r.ok ? r.json() : r.text().then((x) => Promise.reject(new Error('HTTP ' + r.status + ' ' + x.slice(0, 120))))))
+      .then((j) => rcRead(String(j.text || ''), 'DeepSeek-OCR-2', Math.round((Date.now() - t0) / 1000)))
+      .catch((e) => { R.err = (e && e.message) || String(e); R.errSecs = Math.round((Date.now() - t0) / 1000); console.error('OCR server', base, e); throw e; });
   }
   function rcPhoto(file) {
     const R = ui.rcv; if (R.img) URL.revokeObjectURL(R.img);
-    R.img = URL.createObjectURL(file); R.lines = []; R.busy = true; R.pct = 0; R.status = t('Scanning document…') + ' 0%'; clearInterval(R.timer); render();
+    R.img = URL.createObjectURL(file); R.lines = []; R.busy = true; R.pct = 0; R.err = ''; R.status = t('Scanning document…') + ' 0%'; clearInterval(R.timer); render();
     rcServer(file).catch(rcTess);
   }
   function viewReceive() {
