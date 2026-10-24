@@ -1143,10 +1143,7 @@
         <div class="row" style="justify-content:space-between;margin-top:14px"><button class="btn" data-a="rc-line">${t('Add item')}</button><button class="btn primary" data-a="rc-add" ${units ? '' : 'disabled'}>${t('Add to stock')}</button></div>`;
     }
     return head + `
-      <div class="rc-bar">
-        ${sup}
-        <button class="btn" data-a="rc-sample">${t('Sample')}</button>
-      </div>
+      ${R.lines.length ? `<div class="rc-bar">${sup}</div>` : ''}
       <div class="rc">
         <div class="rc-doc">${R.img ? `<img src="${R.img}" alt="">` : R.sample ? `<pre>${esc(RC_SAMPLE)}</pre>` : ''}
           <label class="${R.img || R.sample ? 'btn ghost' : 'rc-up'}">${I.camera}${t('Upload')}<input type="file" accept="image/*" id="rc-file" hidden></label><div class="small muted" id="rc-status">${esc(R.status || '')}</div></div>
