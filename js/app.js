@@ -976,39 +976,46 @@
   // Photo → DeepSeek-OCR-2 server if set, else in-browser OCR (Tesseract.js) → lines matched by barcode, saved supplier code, then name → review → add to stock.
   const RC_SAMPLE = 'ALMARAI CO.\nDELIVERY NOTE DN-55821 24/10/2026\nCode Item Qty Price Total\n6281000001028 Fresh Milk 1L Carton 4 CTN 62.40 249.60\nAL-220 Laban 1L 24 4.40 105.60\nWHT CHEESE 500G x1O 14.30 143.00\n6281000007013 Orange Juice 1.4L 12 8.20 98.40\nYoghurt Cup 170g 24 1.50 36.00\nSubtotal 632.60 VAT 15% 94.89\nTotal SAR 727.49';
   const RC_MEMORY = { 's1|AL-220': 'p9' };
-  const RC_SKIP = /\b(sub ?total|total|vat|tax|date|invoice|purchase order|delivery note|received|thank|items|tel|phone|code item|barcode description)\b/i;
-  const RC_UNIT = /^(bag|btl|box|can|pcs?|ea|ctn|cartons?|pk|pack|kg|unit|x)$/i;
+  const RC_SKIP = /\b(sub ?total|total|vat|tax|date|invoice|purchase order|delivery note|received|thank|items|tel|phone|code item|barcode description)\b|المجموع|الاجمالي|ضريبه|فاتوره|التاريخ|الصنف|الكميه|سند استلام|الرقم الضريبي/i; // Arabic as normalized by rcArNorm
+  const RC_UNIT = /^(bag|btl|box|can|pcs?|ea|ctn|cartons?|pk|pack|kg|unit|x|كيس|عبوه|علبه|حبه|حبات|كرتون|كرتونه|صندوق|ربطه|باكيت|قطعه)$/i;
+  const RC_SIZE = { كجم: 'kg', كغ: 'kg', كيلو: 'kg', جم: 'g', غ: 'g', جرام: 'g', مل: 'ml', لتر: 'l', ل: 'l', kg: 'kg', g: 'g', ml: 'ml', l: 'l', ltr: 'l' };
   const RC_ABBR = { pst: 'paste', chkn: 'chicken', inst: 'instant', jce: 'juice', wtr: 'water', wht: 'white', gr: 'green', bg: 'bags', pk: 'pack', ltr: 'l' };
+  // Arabic-Indic digits and separators to Western; Arabic letter variants to one form.
+  const rcDigits = (s) => String(s).replace(/[٠-٩]/g, (d) => d.charCodeAt(0) - 0x660).replace(/[۰-۹]/g, (d) => d.charCodeAt(0) - 0x6F0).replace(/٫/g, '.').replace(/٬/g, ',');
+  const rcArNorm = (s) => s.replace(/[ً-ٰٟـ]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي');
   function rcParse(raw) {
-    const line = raw.replace(/[؀-ۿ]+/g, ' ').replace(/\s+/g, ' ').trim();
+    const line = rcArNorm(rcDigits(raw)).replace(/\s+/g, ' ').trim();
     if (!line || RC_SKIP.test(line)) return null;
     // OCR often reads 0 as O and 1 as l inside numbers.
     const toks = line.split(' ').map((tk) => (/\d/.test(tk) && /^[xX]?[\dOoIl.,]+$/.test(tk) ? tk.replace(/[Oo]/g, '0').replace(/[Il]/g, '1') : tk));
     let barcode = null, code = null, qty = null;
     const nums = [], words = [];
     toks.forEach((tk, i) => {
+      if (tk === null) return;
       if (!barcode && /^\d{8,14}$/.test(tk)) { barcode = tk; return; }
       if (!code && /^[A-Z]{2,4}-\d{2,5}$/.test(tk)) { code = tk; return; }
       const xq = tk.match(/^[xX×](\d+)$/); if (xq && qty == null) { qty = +xq[1]; return; }
       if (/^\d+([.,]\d+)?$/.test(tk)) {
         if (i === 0 && /^\d{1,3}$/.test(tk)) return;
-        const nx = toks[i + 1];
-        if (/^\d+$/.test(tk) && words.length && nx && /^[a-z]{3,}$/i.test(nx) && !RC_UNIT.test(nx)) { words.push(tk); return; }
+        const nx = toks[i + 1], sz = nx && RC_SIZE[rcArNorm(nx).toLowerCase()];
+        if (sz) { words.push(tk.replace(',', '.') + sz); toks[i + 1] = null; return; }
+        if (/^\d+$/.test(tk) && words.length && nx && /^([a-z]{3,}|[ء-ي]{3,})$/i.test(nx) && !RC_UNIT.test(nx)) { words.push(tk); return; }
         nums.push(tk.replace(',', '.')); return;
       }
       if (RC_UNIT.test(tk)) return;
-      if (/[a-z]/i.test(tk)) words.push(tk);
+      if (/[a-zء-ي]/i.test(tk)) words.push(tk);
     });
     const ints = nums.filter((n) => /^\d+$/.test(n));
     if (qty == null && ints.length) qty = +ints[0];
     if (qty == null || !words.length) return null;
     return { desc: words.join(' '), barcode, code, qty };
   }
-  const rcNorm = (s) => s.toLowerCase().replace(/(\d)\s+(g|kg|ml|l|pcs)\b/g, '$1$2').split(/[^a-z0-9.]+/).filter(Boolean).map((w) => RC_ABBR[w] || w).join(' ');
-  const rcSizes = (s) => (s.match(/\b\d+(?:\.\d+)?(?:g|kg|ml|l|pcs)\b/g) || []).sort().join(',');
+  const rcNorm = (s) => rcArNorm(rcDigits(s)).toLowerCase().replace(/(\d)\s*(كجم|كغ|جم|غ|مل|لتر)(?![ء-ي])/g, (m, d, u) => d + RC_SIZE[u]).replace(/(\d)\s+(g|kg|ml|l|pcs)\b/g, '$1$2')
+    .split(/[^a-z0-9.ء-ي]+/).filter(Boolean).map((w) => RC_ABBR[w] || w).join(' ');
+  const rcSizes = (s) => (s.match(/\d+(?:\.\d+)?(?:kg|ml|g|l|pcs)(?![a-z])/g) || []).sort().join(',');
   const rcBigrams = (s) => { const a = [], x = s.replace(/ /g, ''); for (let i = 0; i < x.length - 1; i++) a.push(x.substr(i, 2)); return a; };
-  function rcScore(desc, p) {
-    const a = rcNorm(desc), b = rcNorm(p.en);
+  function rcScore1(desc, name) {
+    const a = rcNorm(desc), b = rcNorm(name);
     const A = rcBigrams(a), B = rcBigrams(b), rest = B.slice(); let hit = 0;
     A.forEach((x) => { const k = rest.indexOf(x); if (k >= 0) { hit++; rest.splice(k, 1); } });
     const dice = A.length + B.length ? 2 * hit / (A.length + B.length) : 0;
@@ -1018,6 +1025,7 @@
     const sa = rcSizes(a), sb = rcSizes(b); if (sa && sb && sa !== sb) s *= 0.6;
     return s;
   }
+  const rcScore = (desc, p) => Math.max(rcScore1(desc, p.en), p.ar ? rcScore1(desc, p.ar) : 0);
   function rcMatch(l, sup) {
     if (l.barcode) {
       for (const p of db.products) { const k = p.packs.find((x) => x.barcode === l.barcode); if (k) return { pid: p.id, mult: k.qty, level: 'exact', why: 'Barcode' }; }
