@@ -1047,7 +1047,7 @@
   function rcTess() {
     const R = ui.rcv; clearInterval(R.timer);
     rcLoadTess().then(() => window.Tesseract.recognize(R.img, 'eng', { logger: (m) => {
-      if (m.status === 'recognizing text') { R.status = t('Reading…') + ' Tesseract ' + Math.round(m.progress * 100) + '%'; const st = $('#rc-status'); if (st) st.textContent = R.status; }
+      if (m.status === 'recognizing text') { R.status = t('Scanning document…') + ' ' + Math.round(m.progress * 100) + '%'; const st = $('#rc-status'); if (st) st.textContent = R.status; }
     } })).then((r) => rcRead(r.data.text, 'Tesseract')).catch(() => { R.busy = false; R.status = t('Could not read the photo.'); render(); });
   }
   // DeepSeek-OCR-2 on the OCR server set in Settings (bench/deepseek_ocr2_colab.ipynb).
@@ -1055,7 +1055,7 @@
     const R = ui.rcv, base = String(db.settings.ocrUrl || '').trim().replace(/\/+$/, '');
     if (!base) return Promise.reject('none');
     const t0 = Date.now();
-    R.status = t('Reading…') + ' DeepSeek-OCR-2'; render();
+    R.status = t('Scanning document…'); render();
     R.timer = setInterval(() => { const st = $('#rc-status'); if (st && R.busy) st.textContent = R.status + ' ' + Math.round((Date.now() - t0) / 1000) + 's'; }, 1000);
     const fd = new FormData(); fd.append('file', file);
     return fetch(base + '/ocr', { method: 'POST', body: fd, headers: { 'ngrok-skip-browser-warning': '1' } })
@@ -1064,7 +1064,7 @@
   }
   function rcPhoto(file) {
     const R = ui.rcv; if (R.img) URL.revokeObjectURL(R.img);
-    R.img = URL.createObjectURL(file); R.lines = []; R.busy = true; R.status = t('Reading…'); clearInterval(R.timer);
+    R.img = URL.createObjectURL(file); R.lines = []; R.busy = true; R.status = t('Scanning document…'); clearInterval(R.timer);
     rcServer(file).catch(rcTess);
   }
   function viewReceive() {

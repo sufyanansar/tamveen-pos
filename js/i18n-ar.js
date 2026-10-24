@@ -15,6 +15,7 @@ window.I18N_AR = {
   'Include': 'تضمين',
   '{n} lines': '{n} أسطر',
   'Reading…': 'جارٍ القراءة…',
+  'Scanning document…': 'جارٍ مسح المستند…',
   'Could not read the photo.': 'تعذّرت قراءة الصورة.',
   'Scanning': 'المسح',
   'OCR server': 'خادم قراءة المستندات',
