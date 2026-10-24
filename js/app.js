@@ -162,7 +162,7 @@
     const r = route()[0];
     const ordN = db.orders.filter((o) => o.status !== 'completed').length;
     const cashierNav = [
-      ['checkout', 'Checkout'], ['orders', 'Orders', ordN, true], ['invoices', 'Invoices'], ['returns', 'Returns'], ['customers', 'Customers'], ['products', 'Products'],
+      ['checkout', 'Checkout'], ['orders', 'Orders', ordN, true], ['invoices', 'Invoices'], ['returns', 'Returns'], ['customers', 'Customers'], ['products', 'Products'], ['receive', 'Receive stock'],
     ];
     const mgrNav = [
       ['checkout', 'Checkout'], ['orders', 'Orders', ordN, true], ['products', 'Products'], ['inventory', 'Inventory'], ['receive', 'Receive stock'], ['customers', 'Customers & Credit'], ['suppliers', 'Suppliers'], ['invoices', 'Invoices'], ['returns', 'Returns'], ['reports', 'Reports'], ['settings', 'Settings'],
