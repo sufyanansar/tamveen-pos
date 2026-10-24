@@ -1043,7 +1043,7 @@
     const R = ui.rcv;
     R.lines = text.split(/\r?\n/).map(rcParse).filter(Boolean).map((l) => {
       const m = rcMatch(l, R.sup);
-      return Object.assign(l, m, { on: !!m.pid, qty: r2(l.qty * m.mult) });
+      return Object.assign(l, m, { on: !!m.pid && !!(l.barcode || l.code), qty: r2(l.qty * m.mult) }); // no barcode or code: tick it yourself
     });
     clearInterval(R.timer);
     R.busy = false; R.status = t('{n} lines', { n: R.lines.length }) + ' · ' + engine + (secs ? ' · ' + secs + 's' : '') + (R.err ? ' · OCR server failed after ' + R.errSecs + 's: ' + R.err : ''); render();
