@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Receive Stock OCR Test Set</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+/* layout: single column header, responsive card grid; image on top, key folded below */
+:root{--bg:#f3f4f2;--surface:#fff;--fg:#1d2321;--muted:#5d6763;--line:#dfe3e0;--accent:#0f6b55;--warn:#a5442a;
+ --sans:'IBM Plex Sans',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#131715;--surface:#1c211f;--fg:#e6ebe8;--muted:#9aa5a0;--line:#2d3431;--accent:#5cc7a6;--warn:#f08b6c;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#131715;--surface:#1c211f;--fg:#e6ebe8;--muted:#9aa5a0;--line:#2d3431;--accent:#5cc7a6;--warn:#f08b6c;color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.45;padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:22px}
+header h1{font-size:26px;margin:0 0 4px;text-wrap:balance}
+header p{margin:0;color:var(--muted)}
+header a{color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px;align-items:start}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;min-width:0}
+.shot{display:block;width:100%;border:0;padding:0;cursor:zoom-in;background:#2a2f2d;aspect-ratio:4/3}
+.shot img{width:100%;height:100%;object-fit:contain;display:block}
+.shot:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
+.body{padding:12px 14px 14px;display:grid;gap:6px}
+.hd{display:flex;gap:8px;align-items:baseline}
+.id{font-family:var(--mono);font-size:12px;color:var(--accent);font-weight:600;letter-spacing:.04em}
+h2{font-size:16px;margin:0}
+.sup{margin:0;color:var(--muted);font-size:13px}
+dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:13px}
+dt{color:var(--muted);text-transform:uppercase;font-size:11px;letter-spacing:.06em;padding-top:2px}
+dd{margin:0}
+summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:13px;padding:4px 0}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:4px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--line);padding:4px 0}
+td{border-bottom:1px solid var(--line);padding:5px 0;vertical-align:top}
+td small{display:block;color:var(--muted);font-family:var(--mono);font-size:11px;word-break:break-word}
+.q{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;padding-left:10px}
+tr.nc td:first-child{color:var(--warn);font-style:italic}
+#view{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:20;overflow:auto;padding:max(12px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) 12px max(12px,env(safe-area-inset-left,0px))}
+#view img{width:100%;height:auto;display:block}
+#view button{position:sticky;top:0;margin-left:auto;display:block;background:#fff;color:#111;border:0;border-radius:6px;padding:8px 14px;font:600 14px var(--sans);margin-bottom:8px}
+.dl{color:var(--accent);font-weight:600;font-size:13px}
+</style></head><body>
+<div class="wrap">
+<header><h1>Receive stock OCR test set</h1>
+<p>10 supplier documents. Tap an image to open it full size, or use Download. Qty in the key is in pieces. <a href="ocr-test-set.zip" download>Download all (zip)</a> · <a href="answer-key.csv" download>Answer key (CSV)</a></p></header>
+<div class="grid"><article class="card" id="D01">
+<a class="shot" href="D01.jpg"><img src="D01.jpg" alt="Clean tax invoice (phone photo)" loading="lazy"></a>
+<div class="body"><div class="hd"><span class="id">D01</span><h2>Clean tax invoice (phone photo)</h2></div>
+<p class="sup">AL NOOR FOODSTUFF TRADING · English</p>
+<dl><dt>Tests</dt><dd>Baseline: barcodes, clear table, good light</dd><dt>Damage</dt><dd>slight perspective, soft lighting gradient, mild blur</dd></dl>
+<a class="dl" href="D01.jpg" download>Download image</a>
+<details><summary>Answer key · 6 lines</summary><table><thead><tr><th>Expected product</th><th class="q">Qty</th></tr></thead><tbody><tr class=""><td>Basmati Rice 5kg<small>Basmati Rice 5kg · 10 BAG</small></td><td class="q">10</td></tr><tr class=""><td>Sunflower Oil 1.5L<small>Sunflower Oil 1.5L · 12 BTL</small></td><td class="q">12</td></tr><tr class=""><td>White Sugar 2kg<small>White Sugar 2kg · 15 BAG</small></td><td class="q">15</td></tr><tr class=""><td>Chickpeas Canned 400g<small>Chickpeas Canned 400g · 24 CAN</small></td><td class="q">24</td></tr><tr class=""><td>Green Tea 100 Bags<small>Green Tea 100 Bags · 6 BOX</small></td><td class="q">6</td></tr><tr class=""><td>Tomato Paste 135g<small>Tomato Paste 135g · 48 PCS</small></td><td class="q">48</td></tr></tbody></table></details>
+</div></article><article class="card" id="D02">
+<a class="shot" href="D02.jpg"><img src="D02.jpg" alt="Faded thermal receipt" loading="lazy"></a>
+<div class="body"><div class="hd"><span class="id">D02</span><h2>Faded thermal receipt</h2></div>
+<p class="sup">GULF FRESH SUPPLIES · English</p>
+<dl><dt>Tests</dt><dd>Abbreviated names (PST, CHKN, JCE, WHT, LF), &#x27;x24&#x27; quantities, monospace, no barcodes</dd><dt>Damage</dt><dd>uneven thermal fade, low contrast, slight curl and tilt</dd></dl>
+<a class="dl" href="D02.jpg" download>Download image</a>
+<details><summary>Answer key · 6 lines</summary><table><thead><tr><th>Expected product</th><th class="q">Qty</th></tr></thead><tbody><tr class=""><td>Tomato Paste 135g<small>TOMATO PST 135G x24</small></td><td class="q">24</td></tr><tr class=""><td>Instant Noodles Chicken 75g<small>INST NOODLE CHKN 75G x40</small></td><td class="q">40</td></tr><tr class=""><td>Orange Juice 200ml<small>ORNG JCE 200ML x30</small></td><td class="q">30</td></tr><tr class=""><td>White Sugar 2kg<small>SUGAR WHT 2KG x6</small></td><td class="q">6</td></tr><tr class=""><td>Green Tea 100 Bags<small>GR TEA 100BG x3</small></td><td class="q">3</td></tr><tr class=""><td>Laban Low Fat 1L<small>LABAN LF 1L x12</small></td><td class="q">12</td></tr></tbody></table></details>
+</div></article><article class="card" id="D03">
+<a class="shot" href="D03.jpg"><img src="D03.jpg" alt="Bilingual delivery note (cartons)" loading="lazy"></a>
+<div class="body"><div class="hd"><span class="id">D03</span><h2>Bilingual delivery note (cartons)</h2></div>
+<p class="sup">RAWABI DISTRIBUTION · English + Arabic</p>
+<dl><dt>Tests</dt><dd>Supplier codes (RW-114 is already saved), cartons x pieces per carton, one item not in catalog</dd><dt>Damage</dt><dd>scanned at a 4° skew, grey paper, sensor noise</dd></dl>
+<a class="dl" href="D03.jpg" download>Download image</a>
+<details><summary>Answer key · 5 lines</summary><table><thead><tr><th>Expected product</th><th class="q">Qty</th></tr></thead><tbody><tr class=""><td>Fresh Milk Full Fat 1L<small>RW-114 Fresh Milk Full Fat 1L · 4 ctn × 12</small></td><td class="q">48</td></tr><tr class=""><td>Laban Low Fat 1L<small>RW-120 Laban Low Fat 1L · 3 ctn × 12</small></td><td class="q">36</td></tr><tr class=""><td>Arabic Bread Large 6pcs<small>RW-305 Arabic Bread Large 6pcs · 2 ctn × 10</small></td><td class="q">20</td></tr><tr class=""><td>Mineral Water 330ml 20 Pack<small>RW-411 Mineral Water 330ml x20 · 5 ctn × 1</small></td><td class="q">5</td></tr><tr class="nc"><td>Not in catalog<small>RW-512 Red Lentils 1kg · 2 ctn × 10</small></td><td class="q">20</td></tr></tbody></table></details>
+</div></article><article class="card" id="D04">
+<a class="shot" href="D04.jpg"><img src="D04.jpg" alt="Arabic-only invoice" loading="lazy"></a>
+<div class="body"><div class="hd"><span class="id">D04</span><h2>Arabic-only invoice</h2></div>
+<p class="sup">مؤسسة الواحة للمواد الغذائية (AL WAHA) · Arabic</p>
+<dl><dt>Tests</dt><dd>Arabic product names only, Eastern Arabic digits (٠١٢٣), right-to-left table</dd><dt>Damage</dt><dd>out of focus, low resolution, JPEG compression</dd></dl>
+<a class="dl" href="D04.jpg" download>Download image</a>
+<details><summary>Answer key · 5 lines</summary><table><thead><tr><th>Expected product</th><th class="q">Qty</th></tr></thead><tbody><tr class=""><td>Basmati Rice 5kg<small>أرز بسمتي ٥ كجم · ٨ كيس</small></td><td class="q">8</td></tr><tr class=""><td>Sunflower Oil 1.5L<small>زيت دوار الشمس ١٫٥ لتر · ١٠ عبوة</small></td><td class="q">10</td></tr><tr class=""><td>Dates Sukkari 1kg<small>تمر سكري ١ كجم · ١٢ علبة</small></td><td class="q">12</td></tr><tr class=""><td>Orange Juice 200ml<small>عصير برتقال ٢٠٠ مل · ٤٨ حبة</small></td><td class="q">48</td></tr><tr class=""><td>Chickpeas Canned 400g<small>حمص معلب ٤٠٠ جم · ٢٤ علبة</small></td><td class="q">24</td></tr></tbody></table></details>
+</div></article><article class="card" id="D05">
+<a class="shot" href="D05.jpg"><img src="D05.jpg" alt="Carbon-copy purchase order" loading="lazy"></a>
+<div class="body"><div class="hd"><span class="id">D05</span><h2>Carbon-copy purchase order</h2></div>
+<p class="sup">SAHARA WHOLESALE EST. · English</p>
+<dl><dt>Tests</dt><dd>Typewriter/dot-matrix font, carbon ink, one misprinted barcode (must fall back to name)</dd><dt>Damage</dt><dd>purple carbon ink bleed, uneven pressure, paper texture, low contrast</dd></dl>
+<a class="dl" href="D05.jpg" download>Download image</a>
+<details><summary>Answer key · 5 lines</summary><table><thead><tr><th>Expected product</th><th class="q">Qty</th></tr></thead><tbody><tr class=""><td>Basmati Rice 5kg<small>6281007030151 BASMATI RICE 5KG 20 BAG</small></td><td class="q">20</td></tr><tr class=""><td>Dates Sukkari 1kg<small>6281007130071 DATES SUKKARI 1KG 10 BOX</small></td><td class="q">10</td></tr><tr class=""><td>Instant Noodles Chicken 75g<small>6281007096619 NOODLES CHICKEN 75G 120 PCS</small></td><td class="q">120</td></tr><tr class=""><td>Orange Juice 200ml<small>6281007152213 ORANGE JUICE 200ML 72 PCS</small></td><td class="q">72</td></tr><tr class=""><td>Mineral Water 330ml 20 Pack<small>6281007141118 WATER 330ML 20PK 10 PK</small></td><td class="q">10</td></tr></tbody></table></details>
+</div></article><article class="card" id="D06">
+<a class="shot" href="D06.jpg"><img src="D06.jpg" alt="Dense 12-line wholesale invoice" loading="lazy"></a>
+<div class="body"><div class="hd"><span class="id">D06</span><h2>Dense 12-line wholesale invoice</h2></div>
+<p class="sup">AL JAZEERA WHOLESALE · English</p>
+<dl><dt>Tests</dt><dd>12 lines in a small font, mixed barcode / no barcode, reordered names, 2 items not in catalog</dd><dt>Damage</dt><dd>low resolution, heavy JPEG artefacts</dd></dl>
+<a class="dl" href="D06.jpg" download>Download image</a>
+<details><summary>Answer key · 12 lines</summary><table><thead><tr><th>Expected product</th><th class="q">Qty</th></tr></thead><tbody><tr class=""><td>Basmati Rice 5kg<small>JZ-1001 6281007030151 Rice Basmati 5kg 5 BAG</small></td><td class="q">5</td></tr><tr class=""><td>White Sugar 2kg<small>JZ-1014 Sugar White 2kg 10 BAG</small></td><td class="q">10</td></tr><tr class=""><td>Tomato Paste 135g<small>JZ-1022 6281007063313 Tomato Paste 135g 96 PCS</small></td><td class="q">96</td></tr><tr class=""><td>Fresh Milk Full Fat 1L<small>JZ-1031 Milk Fresh F/F 1L 24 PCS</small></td><td class="q">24</td></tr><tr class=""><td>Instant Noodles Chicken 75g<small>JZ-1040 6281007096619 Noodles Inst. Chicken 75g 60 PCS</small></td><td class="q">60</td></tr><tr class=""><td>Arabic Bread Large 6pcs<small>JZ-1052 Arabic Bread L 6pc 10 PKT</small></td><td class="q">10</td></tr><tr class="nc"><td>Not in catalog<small>JZ-1063 6281099000123 Tuna Chunks 185g 48 CAN</small></td><td class="q">48</td></tr><tr class=""><td>Chickpeas Canned 400g<small>JZ-1070 6281007118817 Chickpeas 400g 36 CAN</small></td><td class="q">36</td></tr><tr class=""><td>Green Tea 100 Bags<small>JZ-1088 Green Tea 100s 12 BOX</small></td><td class="q">12</td></tr><tr class="nc"><td>Not in catalog<small>JZ-1095 Dish Soap Lemon 750ml 12 BTL</small></td><td class="q">12</td></tr><tr class=""><td>Mineral Water 330ml 20 Pack<small>JZ-1102 6281007141118 Water 330ml 20pk 15 PK</small></td><td class="q">15</td></tr><tr class=""><td>Orange Juice 200ml<small>JZ-1117 Orange Juice 200ml 60 PCS</small></td><td class="q">60</td></tr></tbody></table></details>
+</div></article><article class="card" id="D07">
+<a class="shot" href="D07.jpg"><img src="D07.jpg" alt="Crumpled invoice photo" loading="lazy"></a>
+<div class="body"><div class="hd"><span class="id">D07</span><h2>Crumpled invoice photo</h2></div>
+<p class="sup">DESERT ROSE TRADING · English</p>
+<dl><dt>Tests</dt><dd>Quantities in dozens (DZN) and cartons, serif font; expected qty is in units</dd><dt>Damage</dt><dd>crumpled paper, creases and shadows, photographed at an angle on a table</dd></dl>
+<a class="dl" href="D07.jpg" download>Download image</a>
+<details><summary>Answer key · 5 lines</summary><table><thead><tr><th>Expected product</th><th class="q">Qty</th></tr></thead><tbody><tr class=""><td>Green Tea 100 Bags<small>Green Tea 100 Bags 2 DZN</small></td><td class="q">24</td></tr><tr class=""><td>Tomato Paste 135g<small>Tomato Paste 135g 4 DZN</small></td><td class="q">48</td></tr><tr class=""><td>Fresh Milk Full Fat 1L<small>Fresh Milk Full Fat 1L 2 CTN (12)</small></td><td class="q">24</td></tr><tr class=""><td>Sunflower Oil 1.5L<small>Sunflower Oil 1.5L 6 PCS</small></td><td class="q">6</td></tr><tr class=""><td>Dates Sukkari 1kg<small>Dates Sukkari 1kg 5 PCS</small></td><td class="q">5</td></tr></tbody></table></details>
+</div></article><article class="card" id="D08">
+<a class="shot" href="D08.jpg"><img src="D08.jpg" alt="Stamped bilingual invoice" loading="lazy"></a>
+<div class="body"><div class="hd"><span class="id">D08</span><h2>Stamped bilingual invoice</h2></div>
+<p class="sup">TAMR AL MADINA DATES &amp; FOODS · English + Arabic</p>
+<dl><dt>Tests</dt><dd>Company stamp and signature over the table, COPY watermark, Arabic + English on the same line</dd><dt>Damage</dt><dd>mild phone photo, slight blur</dd></dl>
+<a class="dl" href="D08.jpg" download>Download image</a>
+<details><summary>Answer key · 5 lines</summary><table><thead><tr><th>Expected product</th><th class="q">Qty</th></tr></thead><tbody><tr class=""><td>Dates Sukkari 1kg<small>Dates Sukkari 1kg / تمر سكري ١ كجم 30</small></td><td class="q">30</td></tr><tr class=""><td>Green Tea 100 Bags<small>Green Tea 100 Bags / شاي أخضر ١٠٠ كيس 12</small></td><td class="q">12</td></tr><tr class=""><td>Laban Low Fat 1L<small>Laban Low Fat 1L / لبن قليل الدسم ١ لتر 24</small></td><td class="q">24</td></tr><tr class=""><td>Sunflower Oil 1.5L<small>Sunflower Oil 1.5L / زيت دوار الشمس ١٫٥ لتر 6</small></td><td class="q">6</td></tr><tr class="nc"><td>Not in catalog<small>Cardamom Green 250g / هيل أخضر ٢٥٠ جم 4</small></td><td class="q">4</td></tr></tbody></table></details>
+</div></article><article class="card" id="D09">
+<a class="shot" href="D09.jpg"><img src="D09.jpg" alt="Delivery slip in low light" loading="lazy"></a>
+<div class="body"><div class="hd"><span class="id">D09</span><h2>Delivery slip in low light</h2></div>
+<p class="sup">AL RAYYAN FOODS · English</p>
+<dl><dt>Tests</dt><dd>Quantity first (&#x27;12 x Oil Sunflower 1.5 Ltr&#x27;), word order reversed, spaced units (5 KG, 400 gm), no barcodes or prices</dd><dt>Damage</dt><dd>dark room, yellow cast, heavy noise, motion blur, vignette</dd></dl>
+<a class="dl" href="D09.jpg" download>Download image</a>
+<details><summary>Answer key · 6 lines</summary><table><thead><tr><th>Expected product</th><th class="q">Qty</th></tr></thead><tbody><tr class=""><td>Sunflower Oil 1.5L<small>12 x Oil Sunflower 1.5 Ltr</small></td><td class="q">12</td></tr><tr class=""><td>Basmati Rice 5kg<small>6 x Rice Basmati 5 KG</small></td><td class="q">6</td></tr><tr class=""><td>Arabic Bread Large 6pcs<small>20 x Bread Arabic Lrg (6)</small></td><td class="q">20</td></tr><tr class=""><td>Chickpeas Canned 400g<small>36 x Chick Peas 400 gm</small></td><td class="q">36</td></tr><tr class=""><td>Orange Juice 200ml<small>24 x O. Juice 200 ml</small></td><td class="q">24</td></tr><tr class=""><td>White Sugar 2kg<small>10 x Sugar 2 Kg</small></td><td class="q">10</td></tr></tbody></table></details>
+</div></article><article class="card" id="D10">
+<a class="shot" href="D10.png"><img src="D10.png" alt="Faxed order with a correction" loading="lazy"></a>
+<div class="body"><div class="hd"><span class="id">D10</span><h2>Faxed order with a correction</h2></div>
+<p class="sup">NAJD FOOD SUPPLY CO. · English + Arabic</p>
+<dl><dt>Tests</dt><dd>Fax/photocopy look, a struck-out quantity corrected by hand (25 → 20), supplier codes</dd><dt>Damage</dt><dd>black-and-white fax, speckle noise, 6° skew, dark copier edges</dd></dl>
+<a class="dl" href="D10.png" download>Download image</a>
+<details><summary>Answer key · 5 lines</summary><table><thead><tr><th>Expected product</th><th class="q">Qty</th></tr></thead><tbody><tr class=""><td>Basmati Rice 5kg<small>ND-101 Basmati Rice 5kg 15</small></td><td class="q">15</td></tr><tr class=""><td>White Sugar 2kg<small>ND-220 White Sugar 2kg 25 (struck, corrected to 20)</small></td><td class="q">20</td></tr><tr class=""><td>Instant Noodles Chicken 75g<small>ND-318 Instant Noodles Chicken 75g 48</small></td><td class="q">48</td></tr><tr class=""><td>Mineral Water 330ml 20 Pack<small>ND-402 Mineral Water 330ml 20 Pack 8</small></td><td class="q">8</td></tr><tr class=""><td>Fresh Milk Full Fat 1L<small>ND-509 Fresh Milk Full Fat 1L 24</small></td><td class="q">24</td></tr></tbody></table></details>
+</div></article></div></div>
+</body></html>
