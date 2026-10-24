@@ -22,7 +22,7 @@
     cart: loadCart(), cat: 'fav', q: '', modal: null, demoOpen: false, toasts: [],
     pay: null, form: null, lastInvoice: null, sel: null, nextQty: '1', invFilter: 'all', invQ: '', prodQ: '', prodCat: 'all',
     custTab: 'unpaid', payForm: null, ret: null, custQ: '', notifiedOffline: false,
-    rcv: { sup: '', lines: [], img: null, sample: false, busy: false, status: '' },
+    rcv: { sup: 's1', lines: [], img: null, sample: false, busy: false, status: '' },
     demo: { server: true, internet: true, printer: true, terminal: true },
   };
 
@@ -1126,9 +1126,9 @@
     const units = R.lines.filter((l) => l.on && l.pid).length;
     return `<div class="page-h"><div><h1>${t('Receive stock')}</h1></div></div>
       <div class="rc-bar">
-        <select class="input" data-in="rc-sup" aria-label="${t('Supplier')}">${R.sup ? '' : `<option value="" selected disabled>${t('Select supplier')}</option>`}${db.suppliers.map((s) => `<option value="${s.id}" ${s.id === R.sup ? 'selected' : ''}>${esc(N(s))}</option>`).join('')}</select>
-        ${R.sup ? `<label class="btn primary">${I.camera}${t('Photo')}<input type="file" accept="image/*" id="rc-file" hidden></label>` : `<button class="btn primary" disabled>${I.camera}${t('Photo')}</button>`}
-        <button class="btn" data-a="rc-sample" ${R.sup ? '' : 'disabled'}>${t('Sample')}</button>
+        <select class="input" data-in="rc-sup" aria-label="${t('Supplier')}">${db.suppliers.map((s) => `<option value="${s.id}" ${s.id === R.sup ? 'selected' : ''}>${esc(N(s))}</option>`).join('')}</select>
+        <label class="btn primary">${I.camera}${t('Photo')}<input type="file" accept="image/*" id="rc-file" hidden></label>
+        <button class="btn" data-a="rc-sample">${t('Sample')}</button>
       </div>
       <div class="rc">
         <div class="rc-doc">${R.img ? `<img src="${R.img}" alt="">` : R.sample ? `<pre>${esc(RC_SAMPLE)}</pre>` : ''}<div class="small muted" id="rc-status">${esc(R.status || '')}</div></div>
