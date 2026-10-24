@@ -22,6 +22,7 @@
     cart: loadCart(), cat: 'fav', q: '', modal: null, demoOpen: false, toasts: [],
     pay: null, form: null, lastInvoice: null, sel: null, nextQty: '1', invFilter: 'all', invQ: '', prodQ: '', prodCat: 'all',
     custTab: 'unpaid', payForm: null, ret: null, custQ: '', notifiedOffline: false,
+    rcv: { sup: 's1', lines: [], img: null, sample: false, busy: false, status: '' },
     demo: { server: true, internet: true, printer: true, terminal: true },
   };
 
@@ -164,7 +165,7 @@
       ['checkout', 'Checkout'], ['orders', 'Orders', ordN, true], ['invoices', 'Invoices'], ['returns', 'Returns'], ['customers', 'Customers'], ['products', 'Products'],
     ];
     const mgrNav = [
-      ['checkout', 'Checkout'], ['orders', 'Orders', ordN, true], ['products', 'Products'], ['inventory', 'Inventory'], ['customers', 'Customers & Credit'], ['suppliers', 'Suppliers'], ['invoices', 'Invoices'], ['returns', 'Returns'], ['reports', 'Reports'], ['settings', 'Settings'],
+      ['checkout', 'Checkout'], ['orders', 'Orders', ordN, true], ['products', 'Products'], ['inventory', 'Inventory'], ['receive', 'Receive stock'], ['customers', 'Customers & Credit'], ['suppliers', 'Suppliers'], ['invoices', 'Invoices'], ['returns', 'Returns'], ['reports', 'Reports'], ['settings', 'Settings'],
     ];
     ui.navList = isMgr() ? mgrNav : cashierNav;
     const nav = (isMgr() ? mgrNav : cashierNav).map(([k, label, badge, lime]) => {
@@ -1026,12 +1027,117 @@
       <div class="bc-grid">${items.map((x) => `<div class="bc"><span class="nm">${esc(N(x.p))}</span><span class="small muted">${esc(x.label)} · ${money(x.p.price)}${x.p.weighted ? ' /kg' : ''}</span>${ean13Svg(x.code)}<span class="cd">${x.code}</span></div>`).join('')}</div>`;
   }
 
+  // ---------------------------------------------------------------- views: receive stock from a delivery document
+  // Photo → in-browser OCR (Tesseract.js) → lines matched by barcode, saved supplier code, then name → review → add to stock.
+  const RC_SAMPLE = 'ALMARAI CO.\nDELIVERY NOTE DN-55821 24/10/2026\nCode Item Qty Price Total\n6281000001028 Fresh Milk 1L Carton 4 CTN 62.40 249.60\nAL-220 Laban 1L 24 4.40 105.60\nWHT CHEESE 500G x1O 14.30 143.00\n6281000007013 Orange Juice 1.4L 12 8.20 98.40\nYoghurt Cup 170g 24 1.50 36.00\nSubtotal 632.60 VAT 15% 94.89\nTotal SAR 727.49';
+  const RC_MEMORY = { 's1|AL-220': 'p9' };
+  const RC_SKIP = /\b(sub ?total|total|vat|tax|date|invoice|purchase order|delivery note|received|thank|items|tel|phone|code item|barcode description)\b/i;
+  const RC_UNIT = /^(bag|btl|box|can|pcs?|ea|ctn|cartons?|pk|pack|kg|unit|x)$/i;
+  const RC_ABBR = { pst: 'paste', chkn: 'chicken', inst: 'instant', jce: 'juice', wtr: 'water', wht: 'white', gr: 'green', bg: 'bags', pk: 'pack', ltr: 'l' };
+  function rcParse(raw) {
+    const line = raw.replace(/[؀-ۿ]+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!line || RC_SKIP.test(line)) return null;
+    // OCR often reads 0 as O and 1 as l inside numbers.
+    const toks = line.split(' ').map((tk) => (/\d/.test(tk) && /^[xX]?[\dOoIl.,]+$/.test(tk) ? tk.replace(/[Oo]/g, '0').replace(/[Il]/g, '1') : tk));
+    let barcode = null, code = null, qty = null;
+    const nums = [], words = [];
+    toks.forEach((tk, i) => {
+      if (!barcode && /^\d{8,14}$/.test(tk)) { barcode = tk; return; }
+      if (!code && /^[A-Z]{2,4}-\d{2,5}$/.test(tk)) { code = tk; return; }
+      const xq = tk.match(/^[xX×](\d+)$/); if (xq && qty == null) { qty = +xq[1]; return; }
+      if (/^\d+([.,]\d+)?$/.test(tk)) {
+        if (i === 0 && /^\d{1,3}$/.test(tk)) return;
+        const nx = toks[i + 1];
+        if (/^\d+$/.test(tk) && words.length && nx && /^[a-z]{3,}$/i.test(nx) && !RC_UNIT.test(nx)) { words.push(tk); return; }
+        nums.push(tk.replace(',', '.')); return;
+      }
+      if (RC_UNIT.test(tk)) return;
+      if (/[a-z]/i.test(tk)) words.push(tk);
+    });
+    const ints = nums.filter((n) => /^\d+$/.test(n));
+    if (qty == null && ints.length) qty = +ints[0];
+    if (qty == null || !words.length) return null;
+    return { desc: words.join(' '), barcode, code, qty };
+  }
+  const rcNorm = (s) => s.toLowerCase().replace(/(\d)\s+(g|kg|ml|l|pcs)\b/g, '$1$2').split(/[^a-z0-9.]+/).filter(Boolean).map((w) => RC_ABBR[w] || w).join(' ');
+  const rcSizes = (s) => (s.match(/\b\d+(?:\.\d+)?(?:g|kg|ml|l|pcs)\b/g) || []).sort().join(',');
+  const rcBigrams = (s) => { const a = [], x = s.replace(/ /g, ''); for (let i = 0; i < x.length - 1; i++) a.push(x.substr(i, 2)); return a; };
+  function rcScore(desc, p) {
+    const a = rcNorm(desc), b = rcNorm(p.en);
+    const A = rcBigrams(a), B = rcBigrams(b), rest = B.slice(); let hit = 0;
+    A.forEach((x) => { const k = rest.indexOf(x); if (k >= 0) { hit++; rest.splice(k, 1); } });
+    const dice = A.length + B.length ? 2 * hit / (A.length + B.length) : 0;
+    const aw = a.split(' ').filter((w) => w.length >= 3), bw = b.split(' ');
+    const cover = aw.length ? aw.filter((w) => bw.some((v) => v.startsWith(w) || (w.startsWith(v) && v.length >= 3))).length / aw.length : 0;
+    let s = 0.5 * dice + 0.5 * cover;
+    const sa = rcSizes(a), sb = rcSizes(b); if (sa && sb && sa !== sb) s *= 0.6;
+    return s;
+  }
+  function rcMatch(l, sup) {
+    if (l.barcode) {
+      for (const p of db.products) { const k = p.packs.find((x) => x.barcode === l.barcode); if (k) return { pid: p.id, mult: k.qty, level: 'exact', why: 'Barcode' }; }
+    }
+    const mem = db.rcMemory || RC_MEMORY, key = sup + '|' + (l.code || rcNorm(l.desc));
+    if (mem[key] && prod(mem[key])) return { pid: mem[key], mult: 1, level: 'exact', why: 'Saved' };
+    let best = null, bs = 0;
+    db.products.forEach((p) => { const s = rcScore(l.desc, p); if (s > bs) { bs = s; best = p; } });
+    const pct = Math.round(bs * 100) + '%';
+    if (bs >= 0.75) return { pid: best.id, mult: 1, level: 'likely', why: pct };
+    if (bs >= 0.5) return { pid: best.id, mult: 1, level: 'check', why: pct };
+    return { pid: '', mult: 1, level: 'none', why: '' };
+  }
+  function rcRead(text) {
+    const R = ui.rcv;
+    R.lines = text.split(/\r?\n/).map(rcParse).filter(Boolean).map((l) => {
+      const m = rcMatch(l, R.sup);
+      return Object.assign(l, m, { on: !!m.pid, qty: r2(l.qty * m.mult) });
+    });
+    R.busy = false; R.status = t('{n} lines', { n: R.lines.length }); render();
+  }
+  function rcLoadTess() {
+    if (window.Tesseract) return Promise.resolve();
+    return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+  }
+  function rcPhoto(file) {
+    const R = ui.rcv; if (R.img) URL.revokeObjectURL(R.img);
+    R.img = URL.createObjectURL(file); R.lines = []; R.busy = true; R.status = t('Reading…'); render();
+    rcLoadTess().then(() => window.Tesseract.recognize(R.img, 'eng', { logger: (m) => {
+      if (m.status === 'recognizing text') { R.status = t('Reading…') + ' ' + Math.round(m.progress * 100) + '%'; const st = $('#rc-status'); if (st) st.textContent = R.status; }
+    } })).then((r) => rcRead(r.data.text)).catch(() => { R.busy = false; R.status = t('Could not read the photo.'); render(); });
+  }
+  function viewReceive() {
+    const R = ui.rcv;
+    const opts = (sel) => `<option value="">—</option>` + db.products.map((p) => `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(N(p))}</option>`).join('');
+    const lv = { exact: '', likely: '', check: 'amber', none: 'red' };
+    const rows = R.lines.map((l, i) => {
+      const p = prod(l.pid);
+      return `<tr class="${l.on ? '' : 'off'}"><td><input type="checkbox" data-in="rc-on" data-i="${i}" ${l.on ? 'checked' : ''} aria-label="${t('Include')}"></td>
+        <td><b>${esc(l.desc)}</b><div class="small muted num">${[l.barcode, l.code].filter(Boolean).join(' · ')}</div></td>
+        <td><select class="input" data-in="rc-pid" data-i="${i}">${opts(l.pid)}</select>${l.pid ? `<span class="tag ${lv[l.level]}">${esc(t(l.why === 'Barcode' || l.why === 'Saved' || l.why === 'Manual' ? l.why : 'Name')) + (/%$/.test(l.why) ? ' ' + l.why : '')}</span>` : ''}</td>
+        <td><input class="input num" style="width:80px" data-in="rc-qty" data-i="${i}" data-k="rcq${i}" value="${l.qty}" inputmode="decimal"></td>
+        <td class="r num">${p ? `${qtyFmt(p.stock, p.weighted)} → <b>${qtyFmt(r2(p.stock + (l.on ? Number(l.qty) || 0 : 0)), p.weighted)}</b>` : '—'}</td></tr>`;
+    }).join('');
+    const blocked = R.lines.some((l) => l.on && !l.pid);
+    const units = R.lines.filter((l) => l.on && l.pid).length;
+    return `<div class="page-h"><div><h1>${t('Receive stock')}</h1></div></div>
+      <div class="rc-bar">
+        <select class="input" data-in="rc-sup" aria-label="${t('Supplier')}">${db.suppliers.map((s) => `<option value="${s.id}" ${s.id === R.sup ? 'selected' : ''}>${esc(N(s))}</option>`).join('')}</select>
+        <label class="btn primary">${I.camera}${t('Photo')}<input type="file" accept="image/*" id="rc-file" hidden></label>
+        <button class="btn" data-a="rc-sample">${t('Sample')}</button>
+      </div>
+      <div class="rc">
+        <div class="rc-doc">${R.img ? `<img src="${R.img}" alt="">` : R.sample ? `<pre>${esc(RC_SAMPLE)}</pre>` : ''}<div class="small muted" id="rc-status">${esc(R.status || '')}</div></div>
+        <div>${R.lines.length ? `<div class="tblwrap"><table class="tbl rc-tbl"><thead><tr><th></th><th>${t('Scanned')}</th><th>${t('Product')}</th><th>${t('Qty')}</th><th class="r">${t('Stock')}</th></tr></thead><tbody>${rows}</tbody></table></div>
+          <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn primary" data-a="rc-add" ${blocked || !units ? 'disabled' : ''}>${t('Add to stock')}</button></div>` : ''}</div>
+      </div>`;
+  }
+
   // ---------------------------------------------------------------- views: inventory / suppliers / reports / settings
   function viewInventory() {
     const low = db.products.filter((p) => p.stock <= p.reorder);
     const value = db.products.reduce((s, p) => s + p.stock * p.cost, 0);
     return `<div class="page-h"><div><h1>${t('Inventory')}</h1></div>
-      <button class="btn primary" data-a="receive">${t('Receive delivery')}</button></div>
+      <div class="row"><a class="btn primary" href="#/receive" style="text-decoration:none">${I.camera}${t('Scan delivery')}</a><button class="btn" data-a="receive">${t('Receive')}</button></div></div>
       <div class="stats"><div class="stat"><div class="k">${t('Products')}</div><div class="v">${db.products.length}</div><div class="d">${t('{n} active', { n: db.products.filter((p) => p.active).length })}</div></div>
         <div class="stat"><div class="k">${t('Below reorder level')}</div><div class="v">${low.length}</div><div class="d">${t('{n} out of stock', { n: db.products.filter((p) => p.stock <= 0).length })}</div></div>
         <div class="stat"><div class="k">${t('Stock value at cost')}</div><div class="v num">${money(value)}</div><div class="d">${t('Excl. VAT')}</div></div>
@@ -1275,7 +1381,7 @@
       const views = {
         checkout: viewCheckout, pay: viewPay, done: () => viewDone(a), orders: viewOrders, invoices: viewInvoices, invoice: () => viewInvoice(a),
         returns: viewReturns, customers: viewCustomers, customer: () => viewCustomer(a), products: viewProducts, product: () => viewProduct(a),
-        inventory: viewInventory, suppliers: viewSuppliers, barcodes: viewBarcodes, reports: viewReports, settings: viewSettings,
+        inventory: viewInventory, receive: viewReceive, suppliers: viewSuppliers, barcodes: viewBarcodes, reports: viewReports, settings: viewSettings,
       };
       app.innerHTML = shell((views[r] || viewCheckout)());
       if (ui.modal && ui.modal.kind === 'line') { if (ui.cart.lines[ui.sel]) renderModal(); else closeModal(); }
@@ -1438,6 +1544,19 @@
     'new-sale': () => go('checkout'),
     // orders
     'translate-name': () => translateName(true),
+    'rc-sample': () => { const R = ui.rcv; if (R.img) URL.revokeObjectURL(R.img); R.img = null; R.sample = true; rcRead(RC_SAMPLE); },
+    'rc-add': () => {
+      const R = ui.rcv; db.rcMemory = db.rcMemory || Object.assign({}, RC_MEMORY); let n = 0;
+      R.lines.forEach((l) => {
+        if (!l.on || !l.pid) return;
+        const p = prod(l.pid), q = Number(l.qty) || 0; p.stock = r2(p.stock + q); n++;
+        if (!l.barcode || !p.packs.some((k) => k.barcode === l.barcode)) db.rcMemory[R.sup + '|' + (l.code || rcNorm(l.desc))] = p.id;
+      });
+      audit(`Received delivery from ${(db.suppliers.find((x) => x.id === R.sup) || {}).en} · ${n} lines`);
+      if (R.img) URL.revokeObjectURL(R.img);
+      ui.rcv = { sup: R.sup, lines: [], img: null, sample: false, busy: false, status: '' };
+      save(); toast(t('{n} products updated', { n })); go('inventory');
+    },
     'order-view': (el) => openModal({ kind: 'order', id: el.dataset.id }),
     'order-step': (el) => { const o = db.orders.find((x) => x.id === el.dataset.id); o.status = el.dataset.s === 'prep' ? 'preparing' : 'ready'; save(); render(); if (ui.modal) renderModal(); },
     'order-load': (el) => {
@@ -1492,6 +1611,10 @@
   };
 
   const inputs = {
+    'rc-sup': (el) => { ui.rcv.sup = el.value; render(); },
+    'rc-on': (el) => { ui.rcv.lines[el.dataset.i].on = el.checked; render(); },
+    'rc-pid': (el) => { const l = ui.rcv.lines[el.dataset.i]; l.pid = el.value; l.level = el.value ? 'exact' : 'none'; l.why = 'Manual'; render(); },
+    'rc-qty': (el) => { ui.rcv.lines[el.dataset.i].qty = el.value; render(); },
     nextqty: (el) => { ui.nextQty = el.value.replace(/[^\d.]/g, ''); },
     'browse-q': (el) => { ui.modal.q = el.value; rerenderModalKeepFocus(); },
     qty: (el) => { const l = ui.cart.lines[el.dataset.i]; const v = Number(el.value); if (el.value !== '' && v > 0 && !el.value.endsWith('.')) { l.qty = r2(v); save(); render(); } },
@@ -1578,6 +1701,7 @@
     if (el.tagName === 'BUTTON' || el.dataset.a === 'forgot') ev.preventDefault();
     fn(el, ev);
   });
+  document.addEventListener('change', (ev) => { if (ev.target.id === 'rc-file' && ev.target.files[0]) { ui.rcv.sample = false; rcPhoto(ev.target.files[0]); } });
   const onInput = (ev) => {
     const el = ev.target.closest('[data-in]');
     if (!el) return;
