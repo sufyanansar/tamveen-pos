@@ -173,8 +173,8 @@
     }).join('');
     const shift = db.session && db.session.shiftStart ? t('Shift since {t}', { t: fmtTime(db.session.shiftStart) }) : '';
     const banner = !ui.demo.server
-      ? `<div class="banner">${I.warn}<span>${t("Can't reach the shop server. Sales are kept on this device and sync when it returns — nothing is sent twice.")}</span><span class="spacer"></span><button class="btn sm danger" data-a="retry-conn">${t('Retry connection')}</button></div>`
-      : !ui.demo.internet ? `<div class="banner warn">${I.warn}<span>${t('Internet is offline. Selling continues; ZATCA reporting waits until the connection returns.')}</span></div>` : '';
+      ? `<div class="banner">${I.warn}<span>${t("Can't reach the shop server")}</span><span class="spacer"></span><button class="btn sm danger" data-a="retry-conn">${t('Retry')}</button></div>`
+      : !ui.demo.internet ? `<div class="banner warn">${I.warn}<span>${t('Internet offline')}</span></div>` : '';
     return `
     <div class="app">
       <header class="topbar">
@@ -195,7 +195,7 @@
           ${nav}
           <div class="bottom">
             <button class="nav" data-a="close-shift">${t('Close shift')}</button>
-            <button class="nav" data-a="switch-user">${t('Lock · switch employee')}</button>
+            <button class="nav" data-a="switch-user">${t('Switch user')}</button>
           </div>
         </nav>
         <main class="main" id="main">${content}</main>
@@ -220,7 +220,6 @@
             <div style="display:flex;flex-direction:column;gap:10px">
               <span class="eyebrow">${t('Store sign-in')}</span>
               <h1>${t('Welcome back.')}</h1>
-              <p class="lead">${t('Sign in with the store ID and password from your owner or manager.')}</p>
             </div>
             <label class="field"><span>${t('Store ID')}</span><input class="input" name="store" autocomplete="username" placeholder="[Store ID]" value="B1-RIYADH" required data-k="store"></label>
             <label class="field"><span class="between"><span>${t('Password')}</span><a href="#" data-a="forgot" style="font-size:13px">${t('Forgot password?')}</a></span>
@@ -231,8 +230,8 @@
               <select class="input" name="user">${db.users.map((u) => `<option value="${u.id}">${esc(isAr() ? u.nameAr : u.name)} · ${t(cap(u.role))}</option>`).join('')}</select></label>
             <button class="btn primary" type="submit" style="height:56px;font-size:16px">${t('Sign in')} ${arrow()}</button>
             <div class="divider">${t('or')}</div>
-            <button class="btn" type="button" data-a="pin-unlock" style="height:52px">${t('Unlock with PIN · registered device')}</button>
-            <div class="demo-hint">${t('Demo: any store ID and password work. PINs')} — ${t('Cashier')} <code>1111</code> · ${t('Manager')} <code>1234</code> · ${t('Owner')} <code>9999</code></div>
+            <button class="btn" type="button" data-a="pin-unlock" style="height:52px">${t('Unlock with PIN')}</button>
+            <div class="demo-hint">${t('PINs')} · ${t('Cashier')} <code>1111</code> · ${t('Manager')} <code>1234</code> · ${t('Owner')} <code>9999</code></div>
           </form>
         </div>
         <div class="row" style="flex-wrap:wrap;gap:8px 16px">
@@ -364,9 +363,7 @@
     const l = ui.cart.lines[ui.sel];
     let body;
     if (!l) {
-      body = `<div class="item-empty"><div class="item-name">${t('Ready to scan')}</div>
-        <p>${t('Scan a product with the barcode reader. Its details show here and it is added to the bill.')}</p>
-        <p class="small">${t('Try scanning')} <button class="linkbtn" data-a="demo-scan" data-code="6281000001011">6281000001011</button> · <button class="linkbtn" data-a="demo-scan" data-code="2100006012507">2100006012507</button> ${t('(scale label, 1.250 kg)')} · <a href="#/barcodes">${t('Test barcode sheet')}</a></p></div>`;
+      body = '';
     } else {
       body = itemBody(l);
     }
@@ -401,7 +398,7 @@
       <div class="search" style="height:48px">${I.search}<input data-in="browse-q" data-k="browseq" value="${esc(m.q || '')}" placeholder="${t('Name (عربي / English), SKU or barcode')}" autofocus></div>
       <div class="cats">${cats}</div>
       <div class="pgrid">${list.map(productCard).join('') || `<div class="empty">${t('No products match.')}</div>`}</div>
-      <p class="small muted" style="margin:0">${t('Prices shown include VAT where it applies. Pack size and stock help tell similar items apart.')}</p>`;
+`;
   }
 
   function creditAvailable(c) {
@@ -423,11 +420,11 @@
     const P = ui.pay, cu = cust(ui.cart.customerId);
     const rec = Number(P.received || 0);
     const methods = [
-      ['cash', 'Cash', 'Cash drawer 1'], ['card', 'Card', 'Payment terminal · connected'], ['transfer', 'Bank transfer', 'Needs reference number'],
-      ['credit', 'Sell on credit', cu && cu.credit ? t('{n} · {a} available', { n: N(cu), a: money(creditAvailable(cu)) }) : 'Pick a customer with a credit account first'],
+      ['cash', 'Cash', ''], ['card', 'Card', ''], ['transfer', 'Bank transfer', ''],
+      ['credit', 'Sell on credit', cu && cu.credit ? t('{n} · {a} available', { n: N(cu), a: money(creditAvailable(cu)) }) : ''],
       ['split', 'Split payment', 'Cash + card'],
     ].map(([k, label, sub]) => `<button class="method ${P.method === k ? 'on' : ''} ${k === 'credit' && !(cu && cu.credit) ? 'dashed' : ''}" data-a="method" data-m="${k}">
-        <b>${t(label)}</b><small>${t(sub)}</small>${P.method === k ? `<span class="tag lime">${t('Selected')}</span>` : ''}</button>`).join('');
+        <b>${t(label)}</b>${sub ? `<small>${t(sub)}</small>` : ''}${P.method === k ? `<span class="tag lime">${t('Selected')}</span>` : ''}</button>`).join('');
 
     let tender = '', summary = '', canComplete = false, received = 0, change = 0;
     if (P.method === 'cash') {
@@ -438,24 +435,22 @@
         <div class="keypad">${['7', '8', '9', '4', '5', '6', '1', '2', '3', '.', '0', '⌫'].map((k) => `<button data-a="key" data-k2="${k}">${k}</button>`).join('')}</div></div>`;
     } else if (P.method === 'card') {
       received = c.total; canComplete = true;
-      tender = `<div class="note">${I.info}<span>${t('Tap Complete to send {a} SAR to the payment terminal. The sale is saved only after the terminal approves.', { a: money(c.total) })}</span></div>`;
+      tender = '';
     } else if (P.method === 'transfer') {
       received = c.total; canComplete = P.ref.trim().length >= 3;
-      tender = `<label class="field"><span>${t('Transfer reference')} <small>(${t('required')})</small></span><input class="input" data-in="ref" data-k="ref" value="${esc(P.ref)}" placeholder="${t('e.g. STC Pay / bank ref')}"></label>
-        <p class="small muted">${t('Check the transfer has arrived in the shop account before completing.')}</p>`;
+      tender = `<label class="field"><span>${t('Transfer reference')} <small>(${t('required')})</small></span><input class="input" data-in="ref" data-k="ref" value="${esc(P.ref)}" placeholder="${t('e.g. STC Pay / bank ref')}"></label>`;
     } else if (P.method === 'credit') {
       const ok = cu && cu.credit && creditAvailable(cu) >= c.total;
       canComplete = !!ok; received = 0;
-      tender = !cu ? `<div class="note">${I.info}<span>${t('Credit sales need a customer with a credit account.')}</span></div><button class="btn" data-a="cust-pick">${t('Select customer')}</button>`
-        : !cu.credit ? `<div class="note">${I.warn}<span>${t('{n} has no credit account. A manager can enable one in Customers & Credit.', { n: esc(N(cu)) })}</span></div>`
-          : `<div class="infobox"><b>${esc(N(cu))}</b>${t('Limit {l} · outstanding {o} · available {a} SAR', { l: money(cu.limit), o: money(outstandingOf(cu)), a: money(creditAvailable(cu)) })}<br>${t('Due in {d} days · terms {t}', { d: cu.termDays, t: t(termsLabel(cu.terms)) })}</div>
+      tender = !cu ? `<button class="btn" data-a="cust-pick">${t('Select customer')}</button>`
+        : !cu.credit ? `<div class="note">${I.warn}<span>${t('{n} has no credit account.', { n: esc(N(cu)) })}</span></div>`
+          : `<div class="infobox"><b>${esc(N(cu))}</b>${t('Limit {l} · outstanding {o} · available {a} SAR', { l: money(cu.limit), o: money(outstandingOf(cu)), a: money(creditAvailable(cu)) })}</div>
             ${ok ? '' : `<div class="note" style="color:var(--red)">${I.warn}<span>${t('This bill is over the available credit.')}</span></div>`}`;
     } else if (P.method === 'split') {
       const cash = Number(P.cash || 0), card = r2(c.total - cash);
       canComplete = cash > 0 && cash < c.total; received = c.total;
       tender = `<div class="grid2"><label class="field"><span>${t('Cash part')}</span><div class="inwrap"><input class="input big num" data-in="split-cash" data-k="splitcash" value="${esc(P.cash)}" inputmode="decimal" placeholder="0.00"><span class="suffix">${SAR()}</span></div></label>
-        <label class="field"><span>${t('Card part')}</span><div class="inwrap"><input class="input big num" value="${money(Math.max(card, 0))}" disabled><span class="suffix">${SAR()}</span></div></label></div>
-        <p class="small muted">${t('Collect the cash first, then the card part goes to the terminal.')}</p>`;
+        <label class="field"><span>${t('Card part')}</span><div class="inwrap"><input class="input big num" value="${money(Math.max(card, 0))}" disabled><span class="suffix">${SAR()}</span></div></label></div>`;
     }
     const remaining = P.method === 'cash' ? Math.max(0, r2(c.total - rec)) : 0;
     summary = `<div class="summary">
@@ -465,9 +460,8 @@
         <div class="change ${remaining > 0 ? 'short' : ''}"><span>${remaining > 0 ? t('Still to collect') : t('Change for customer')}</span><b class="num">${money(remaining > 0 ? remaining : Math.max(0, change))} <small>${SAR()}</small></b></div>` : ''}
       ${P.method === 'split' ? `<div class="between num"><span>${t('Cash')}</span><span>${money(Number(P.cash || 0))}</span></div><div class="between num"><span>${t('Card')}</span><span>${money(Math.max(0, r2(c.total - Number(P.cash || 0))))}</span></div>` : ''}
       ${P.method === 'credit' ? `<div class="between num"><span>${t('Paid now')}</span><span>0.00</span></div><div class="between num"><span>${t('Added to customer balance')}</span><span>${money(c.total)}</span></div>` : ''}
-      <div class="infobox"><b>${t(cu && cu.vatNo ? 'A standard tax invoice will be issued' : 'A simplified tax invoice will be issued')}</b>${t('Payment status: {p} · Delivery: {d} · ZATCA: {z}', { p: t(P.method === 'credit' ? 'Unpaid' : 'Paid'), d: t(ui.cart.orderId ? 'Delivery order' : 'Collected in store'), z: t(ui.demo.server && ui.demo.internet ? 'reported within 24 hours' : 'queued until back online') })}</div>
-      <button class="btn primary xl" data-a="complete" ${canComplete ? '' : 'disabled'}>${t('Complete sale and issue invoice')} ${arrow()}</button>
-      <button class="btn block" data-a="back-cart">${t('Back to bill')}</button>
+      <button class="btn primary xl" data-a="complete" ${canComplete ? '' : 'disabled'}>${t('Create invoice')} ${arrow()}</button>
+      <button class="btn block" data-a="back-cart">${t('Back')}</button>
     </div>`;
     return `<div class="steps">
         <span class="step done">${I.tick} ${t('1 Customer · {n}', { n: cu ? esc(N(cu)) : t('Walk-in') })}</span>
@@ -476,7 +470,7 @@
       <div class="pay">
         <div>
           <div class="amountdue"><div class="small" style="font-weight:600">${t('Amount due')}</div><div class="v num">${money(c.total)}<small>${SAR()}</small></div>
-            <div class="small muted">${t('Includes 15% VAT ({v} SAR) — VAT is not added again', { v: money(c.vat) })}</div></div>
+            <div class="small muted">${t('Incl. VAT {v} SAR', { v: money(c.vat) })}</div></div>
           <div class="methods">${methods}</div>
           <div class="tender">${tender}</div>
         </div>
@@ -583,9 +577,8 @@
     if (!inv.uuid && !ui.zatcaLive) ZATCA.stampAll(db);
     const signed = !!inv.zqr;
     const row = (k, v) => `<div class="between small"><span class="muted">${t(k)}</span><span class="num" style="word-break:break-all;text-align:end">${esc(v)}</span></div>`;
-    return `<div class="panel" style="display:flex;flex-direction:column;gap:6px"><div class="eyebrow">${t('ZATCA e-invoice')}</div>
-      ${inv.uuid ? row('UUID', inv.uuid) + row('Invoice counter (ICV)', String(inv.icv)) + row('Invoice hash', inv.zhash || '') : row('Status', t('Waiting for the POS service'))}
-      <p class="small muted" style="margin:4px 0 0">${t(signed ? 'Signed by this device and sent to ZATCA.' : 'Demo only: not signed and not sent to ZATCA. Signing needs the POS service.')}</p>
+    return `<div class="panel" style="display:flex;flex-direction:column;gap:6px"><div class="between"><span class="eyebrow">${t('ZATCA e-invoice')}</span><span class="tag ${signed ? '' : 'amber'}">${t(signed ? 'Signed' : 'Demo')}</span></div>
+      ${inv.uuid ? row('UUID', inv.uuid) + row('Invoice counter (ICV)', String(inv.icv)) + row('Invoice hash', inv.zhash || '') : row('Status', t('Waiting'))}
       ${(inv.zerr || []).map((e) => `<div class="small" style="color:var(--red)">${esc(e)}</div>`).join('')}${(inv.zwarn || []).map((e) => `<div class="small" style="color:var(--amber)">${esc(e)}</div>`).join('')}</div>`;
   }
 
@@ -644,19 +637,18 @@
     return `<div class="done-grid">
       <div>
         <div class="row" style="gap:16px;align-items:center"><div class="check">${I.check}</div><div><div class="eyebrow">${t('Sale complete')}</div><div class="inv-no">${inv.id}</div></div></div>
-        <p style="font-size:18px;line-height:1.5;color:var(--muted);margin:22px 0 0">${inv.change > 0 ? t('Change due to customer:') + ` <b style="color:var(--green)">${money(inv.change)} SAR</b>. ` : ''}${t('The invoice is saved — printing or sending again never creates a second sale.')}</p>
+        <p style="font-size:18px;line-height:1.5;color:var(--muted);margin:22px 0 0">${inv.change > 0 ? t('Change due to customer:') + ` <b style="color:var(--green)">${money(inv.change)} SAR</b>` : ''}</p>
         <div class="status3">
           <div class="card"><span class="k">${t('PAYMENT')}</span><span class="tag ${inv.status === 'paid' ? 'lime' : 'amber'}">${t(inv.status === 'paid' ? 'Paid' : 'Unpaid')}</span><p>${payDesc}</p></div>
-          <div class="card"><span class="k">${t('DELIVERY')}</span><span class="tag">${t(inv.delivery === 'delivery' ? 'Out for delivery' : 'Collected in store')}</span><p>${t(inv.delivery === 'delivery' ? 'Linked to order {o}' : 'No delivery needed', { o: inv.orderId || '' })}</p></div>
-          <div class="card"><span class="k">ZATCA</span><span class="tag amber">${t(inv.zatca === 'offline' ? 'Saved offline' : 'Queued for reporting')}</span><p>${t(inv.zatca === 'offline' ? 'Will report when the connection returns' : 'Simplified invoice · report within 24 h')}</p></div>
+          <div class="card"><span class="k">${t('DELIVERY')}</span><span class="tag">${t(inv.delivery === 'delivery' ? 'Out for delivery' : 'Collected in store')}</span>${inv.delivery === 'delivery' ? `<p>${t('Linked to order {o}', { o: inv.orderId || '' })}</p>` : ''}</div>
+          <div class="card"><span class="k">ZATCA</span><span class="tag amber">${t(inv.zatca === 'offline' ? 'Saved offline' : 'Queued for reporting')}</span></div>
         </div>
         <div class="actions3">
           <button class="btn" data-a="print" data-id="${inv.id}" style="height:56px">${I.print}${t('Print receipt')}</button>
-          <button class="btn" data-a="send" data-id="${inv.id}" style="height:56px">${I.send}${t('Send digital copy')}</button>
-          <a class="btn ghost" href="#/invoice/${inv.id}" style="height:56px;text-decoration:none">${t('View full invoice')}</a>
+          <button class="btn" data-a="send" data-id="${inv.id}" style="height:56px">${I.send}${t('Send copy')}</button>
+          <a class="btn ghost" href="#/invoice/${inv.id}" style="height:56px;text-decoration:none">${t('View invoice')}</a>
         </div>
         <button class="btn primary" data-a="new-sale" style="height:56px;min-width:246px">${t('New sale')} ${arrow()}</button>
-        <div class="note" style="margin-top:22px">${I.info}<span>${t('Credit sales land here as Unpaid with the due date and terms, and add to the customer\'s balance. Returns use a linked credit note — issued invoices are never edited.')}</span></div>
         ${cash ? '' : ''}
       </div>
       <div class="preview"><div class="eyebrow" style="margin-bottom:12px">${t('Preview · 80 mm · bilingual')}</div>${receipt(inv)}</div>
@@ -676,15 +668,15 @@
   function orderBody(m) {
     const o = db.orders.find((x) => x.id === m.id); if (!o) return '';
     const c = calc(o.lines), cu = cust(o.customerId), st = ORDER_ST[o.status];
-    const next = { new: ['prep', 'Start preparing'], preparing: ['ready', 'Mark ready'] }[o.status];
+    const next = { new: ['prep', 'Prepare'], preparing: ['ready', 'Ready'] }[o.status];
     const lines = o.lines.map((l) => `<tr><td>${esc(N(l))}</td><td class="r num">${qtyFmt(l.qty, l.weighted)}</td><td class="r num"><b>${money(lineTotal(l))}</b></td></tr>`).join('');
     return `<div class="between"><h3>${o.id}</h3><span class="tag ${st[1]}">${t(st[0])}</span></div>
       <div class="small muted">${cu ? esc(N(cu)) : t('Walk-in')} · ${t(o.type === 'delivery' ? 'Delivery' : 'Pick-up')}${o.address ? ' · ' + esc(o.address) : ''}</div>
       <table class="tbl"><thead><tr><th>${t('Product')}</th><th class="r">${t('Qty')}</th><th class="r">${t('Total')}</th></tr></thead><tbody>${lines}</tbody></table>
       <div class="between"><b>${t('Total')}</b><b class="num" style="font-size:20px">${money(c.total)} SAR</b></div>
-      <div class="btns" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">${o.status === 'completed' ? `<a class="btn ghost" href="#/invoice/${o.invoiceId}" data-a="close" style="text-decoration:none">${t('View invoice')}</a>` : `
+      <div class="btns" style="grid-template-columns:repeat(auto-fit,minmax(90px,1fr))">${o.status === 'completed' ? `<a class="btn ghost" href="#/invoice/${o.invoiceId}" data-a="close" style="text-decoration:none">${t('View invoice')}</a>` : `
         ${next ? `<button class="btn" data-a="order-step" data-id="${o.id}" data-s="${next[0]}">${t(next[1])}</button>` : ''}
-        <button class="btn primary" data-a="order-load" data-id="${o.id}">${t('Load into checkout')}</button>`}
+        <button class="btn primary" data-a="order-load" data-id="${o.id}">${t('Checkout')}</button>`}
         <button class="btn ghost" data-a="close">${t('Close')}</button></div>`;
   }
 
@@ -706,7 +698,7 @@
       return true;
     });
     const tabs = [['all', 'All'], ['today', 'Today'], ['unpaid', 'Unpaid'], ['cn', 'Credit notes']].map(([k, l]) => `<button class="pill ${ui.invFilter === k ? 'on' : ''}" data-a="inv-filter" data-f="${k}">${t(l)}</button>`).join('');
-    return `<div class="page-h"><div><h1>${t('Invoices')}</h1><div class="sub">${t('Issued invoices are never edited. Corrections and returns use a linked credit note.')}</div></div></div>
+    return `<div class="page-h"><div><h1>${t('Invoices')}</h1></div></div>
       <div class="between" style="margin-bottom:14px;flex-wrap:wrap"><div class="tabs" style="margin:0">${tabs}</div>
         <div class="search" style="height:44px;width:320px;max-width:100%">${I.search}<input data-in="invq" data-k="invq" value="${esc(ui.invQ)}" placeholder="${t('Invoice no. or customer')}"></div></div>
       <div class="tblwrap"><table class="tbl"><thead><tr><th>${t('Invoice')}</th><th>${t('Date')}</th><th>${t('Customer')}</th><th>${t('Payment')}</th><th class="r">${t('Total')}</th><th class="r">${t('Outstanding')}</th><th>ZATCA</th></tr></thead>
@@ -719,8 +711,8 @@
     const cns = db.invoices.filter((x) => x.type === 'credit_note' && x.ref === inv.id);
     return `<div class="crumbs"><a href="#/invoices">${t('Invoices')}</a> / ${inv.id}</div>
       <div class="page-h"><div><h1>${inv.id}</h1><div class="sub">${fmtDate(inv.date)} ${fmtTime(inv.date)} · ${cu ? esc(N(cu)) : t('Walk-in customer')} · ${t('Cashier')} ${esc(inv.cashier || '-')}</div></div>
-        <div class="row" style="flex-wrap:wrap"><button class="btn sm" data-a="print" data-id="${inv.id}">${I.print}${t('Print')}</button><button class="btn sm" data-a="send" data-id="${inv.id}">${I.send}${t('Send')}</button><button class="btn sm" data-a="zatca-xml" data-id="${inv.id}">${t('Download XML')}</button>
-        ${inv.type === 'sale' ? `<button class="btn sm primary" data-a="start-return" data-id="${inv.id}">${t('Issue return / credit note')}</button>` : ''}</div></div>
+        <div class="row" style="flex-wrap:wrap"><button class="btn sm" data-a="print" data-id="${inv.id}">${I.print}${t('Print')}</button><button class="btn sm" data-a="send" data-id="${inv.id}">${I.send}${t('Send')}</button><button class="btn sm" data-a="zatca-xml" data-id="${inv.id}">XML</button>
+        ${inv.type === 'sale' ? `<button class="btn sm primary" data-a="start-return" data-id="${inv.id}">${t('Return')}</button>` : ''}</div></div>
       <div class="done-grid">
         <div style="display:flex;flex-direction:column;gap:14px">
           <div class="stats" style="grid-template-columns:repeat(3,1fr);margin:0">
@@ -743,8 +735,8 @@
     const R = ui.ret;
     if (!R) {
       const recent = db.invoices.filter((i) => i.type === 'sale').slice(0, 8);
-      return `<div class="page-h"><div><h1>${t('Returns')}</h1><div class="sub">${t('Find the original invoice. A return issues a credit note linked to it, puts stock back and refunds the customer.')}</div></div></div>
-        <form class="search" data-form="find-inv" style="max-width:520px;margin-bottom:18px">${I.search}<input name="no" placeholder="${t('Scan or type the invoice number, e.g. 482')}" data-k="retq"><button class="btn sm primary" type="submit">${t('Find')}</button></form>
+      return `<div class="page-h"><div><h1>${t('Returns')}</h1></div></div>
+        <form class="search" data-form="find-inv" style="max-width:520px;margin-bottom:18px">${I.search}<input name="no" placeholder="${t('Invoice number')}" data-k="retq"><button class="btn sm primary" type="submit">${t('Find')}</button></form>
         <div class="eyebrow" style="margin-bottom:10px">${t('Recent invoices')}</div>
         <div class="list" style="max-height:none;max-width:720px">${recent.map((i) => `<button data-a="start-return" data-id="${i.id}"><span><b>${i.id}</b> <span class="muted small">· ${fmtDate(i.date)} · ${cust(i.customerId) ? esc(N(cust(i.customerId))) : t('Walk-in')}</span></span><b class="num">${money(i.total)}</b></button>`).join('')}</div>`;
     }
@@ -765,8 +757,7 @@
           <label class="field"><span>${t('Reason')}</span><select class="input" data-in="ret-reason" data-k="rreason">${['Damaged or expired', 'Wrong item', 'Customer changed mind', 'Price correction'].map((r) => `<option ${R.reason === r ? 'selected' : ''} value="${r}">${t(r)}</option>`).join('')}</select></label>
           <div class="field"><span>${t('Refund to')}</span><div class="row" style="flex-wrap:wrap">${(isCredit ? [['balance', 'Reduce account balance']] : [['cash', 'Cash'], ['card', 'Back to card']]).map(([k, l]) => `<button class="pill outline ${R.method === k ? 'on' : ''}" data-a="ret-method" data-m="${k}">${t(l)}</button>`).join('')}</div></div>
           <div class="newbal"><span>${t('Refund total')}</span><b class="num">${money(refund)} SAR</b></div>
-          <p class="small muted" style="margin:0">${t('Stock for returned items goes back on the shelf. The original invoice stays unchanged.')}</p>
-          <button class="btn primary xl" data-a="issue-cn" ${refund > 0 ? '' : 'disabled'}>${t('Issue credit note')} ${arrow()}</button>
+          <button class="btn primary xl" data-a="issue-cn" ${refund > 0 ? '' : 'disabled'}>${t('Refund')} ${arrow()}</button>
           <button class="btn block" data-a="ret-cancel">${t('Cancel')}</button>
         </div>
       </div>`;
@@ -797,7 +788,7 @@
   function viewCustomers() {
     const q = ui.custQ.trim().toLowerCase();
     const list = db.customers.filter((c) => !q || c.en.toLowerCase().includes(q) || c.ar.includes(q) || c.phone.replace(/\s/g, '').includes(q.replace(/\s/g, '')));
-    return `<div class="page-h"><div><h1>${t(isMgr() ? 'Customers & Credit' : 'Customers')}</h1><div class="sub">${t('Customer accounts, credit limits and balances.')}</div></div>
+    return `<div class="page-h"><div><h1>${t(isMgr() ? 'Customers & Credit' : 'Customers')}</h1></div>
       <button class="btn primary" data-a="new-cust">${t('New customer')}</button></div>
       <div class="search" style="height:44px;max-width:420px;margin-bottom:14px">${I.search}<input data-in="custq" data-k="custq" value="${esc(ui.custQ)}" placeholder="${t('Name or phone')}"></div>
       <div class="tblwrap"><table class="tbl"><thead><tr><th>${t('Customer')}</th><th>${t('Phone')}</th><th>${t('Terms')}</th><th class="r">${t('Credit limit')}</th><th class="r">${t('Outstanding')}</th><th>${t('Oldest unpaid')}</th></tr></thead>
@@ -844,7 +835,7 @@
     const allocHtml = F.manual
       ? unpaid.map((i) => `<div class="between"><span>${i.id} <span class="muted small">(${money(i.outstanding)})</span></span><input class="input num" style="height:36px;width:120px" data-in="alloc" data-id="${i.id}" data-k="al${i.id}" value="${esc(F.manual[i.id] || '')}" placeholder="0.00"></div>`).join('')
         + (Math.abs(al.unallocated) > 0.001 ? `<div class="small" style="color:var(--red)">${t('{a} SAR not allocated yet', { a: money(al.unallocated) })}</div>` : '')
-      : al.lines.map((x) => `<div class="between"><span>${x.id}</span><span class="num">${money(x.amount)} · ${x.left > 0 ? t('{l} left', { l: money(x.left) }) : t('settled')}</span></div>`).join('') || `<span class="muted small">${t('Enter an amount to see how it is allocated.')}</span>`;
+      : al.lines.map((x) => `<div class="between"><span>${x.id}</span><span class="num">${money(x.amount)} · ${x.left > 0 ? t('{l} left', { l: money(x.left) }) : t('settled')}</span></div>`).join('');
     const valid = amt > 0 && (!F.manual || Math.abs(al.unallocated) < 0.001) && (F.method === 'cash' || F.ref.trim() || F.method === 'card');
     return `<div class="crumbs"><a href="#/customers">${t('Customers')}</a> / ${t('Account')}</div>
       <div class="page-h"><div><h1>${esc(N(c))} <span class="ar" style="font-size:26px;font-weight:500;color:var(--muted)">${esc(N2(c))}</span></h1>
@@ -858,19 +849,18 @@
         <div class="stat"><div class="k">${t('Oldest unpaid')}</div><div class="v" style="font-size:24px">${old ? t('{d} days', { d: old.days }) : '—'}</div><div class="d" style="${old && old.overdue ? 'color:var(--amber);font-weight:600' : ''}">${old ? (old.overdue ? t('Past due since {d}', { d: fmtDay(old.inv.due) }) : t('Due {d}', { d: fmtDay(old.inv.due) })) : t('All settled')}</div></div>
       </div>
       <div class="cust-grid">
-        <div><div class="tabs">${tabs}</div>${table}<p class="small muted" style="margin-top:12px">${t('The monthly statement summarises these invoices — it never creates a new sale.')}</p></div>
+        <div><div class="tabs">${tabs}</div>${table}</div>
         <div class="panel" style="display:flex;flex-direction:column;gap:12px">
           <h3 style="font-size:22px">${t('Record payment')}</h3>
           <label class="field"><span>${t('Amount received')}</span><div class="inwrap"><input class="input big num" data-in="pf-amount" data-k="pfamount" value="${esc(F.amount)}" inputmode="decimal" placeholder="0.00" ${o ? '' : 'disabled'}><span class="suffix">${SAR()}</span></div>
-            ${Number(F.amount) > o ? `<small style="color:var(--amber)">${t('More than the outstanding balance; capped at {o}.', { o: money(o) })}</small>` : ''}</label>
+            ${Number(F.amount) > o ? `<small style="color:var(--amber)">${t('Capped at {o}', { o: money(o) })}</small>` : ''}</label>
           <div class="row" style="flex-wrap:wrap">${methodPills}</div>
           <div class="grid2"><label class="field"><span>${t('Reference')}</span><input class="input" data-in="pf-ref" data-k="pfref" value="${esc(F.ref)}" placeholder="${t(F.method === 'transfer' ? 'Required' : 'Optional')}"></label>
             <label class="field"><span>${t('Date')}</span><input class="input" type="date" data-in="pf-date" data-k="pfdate" value="${F.date}"></label></div>
           <div class="alloc"><div class="eyebrow" style="color:var(--muted)">${t(F.manual ? 'Allocation · manual' : 'Allocation · oldest first')}</div>${allocHtml}
             <button class="linkbtn" style="align-self:flex-start;font-size:13px" data-a="alloc-toggle">${t(F.manual ? 'Allocate oldest first' : 'Allocate manually')}</button></div>
           <div class="newbal"><span>${t('New balance')}</span><b class="num">${money(o)} ${isAr() ? '←' : '→'} ${money(r2(o - allocated))}</b></div>
-          <p class="small muted" style="margin:0">${t('Records money only. Stock and the original invoices stay unchanged.')}</p>
-          <button class="btn primary xl" data-a="record-pay" ${valid ? '' : 'disabled'}>${t('Record {a} SAR', { a: money(amt) })} ${arrow()}</button>
+          <button class="btn primary xl" data-a="record-pay" ${valid ? '' : 'disabled'}>${t('Record')} ${arrow()}</button>
         </div>
       </div>`;
   }
@@ -891,7 +881,7 @@
   function viewProducts() {
     const q = ui.prodQ.trim().toLowerCase();
     const list = db.products.filter((p) => (ui.prodCat === 'all' || p.cat === ui.prodCat) && (!q || p.en.toLowerCase().includes(q) || p.ar.includes(q) || p.sku.toLowerCase().includes(q) || p.packs.some((k) => k.barcode.includes(q))));
-    return `<div class="page-h"><div><h1>${t('Products')}</h1><div class="sub">${t('{n} products · prices include VAT where it applies', { n: db.products.length })}</div></div>
+    return `<div class="page-h"><div><h1>${t('Products')}</h1><div class="sub">${t('{n} products', { n: db.products.length })}</div></div>
       <div class="row"><a class="btn ghost" href="#/barcodes" style="text-decoration:none">${t('Test barcodes')}</a><a class="btn primary" href="#/product/new" style="text-decoration:none">${t('Add product')}</a></div></div>
       <div class="between" style="margin-bottom:14px;flex-wrap:wrap"><div class="tabs" style="margin:0"><button class="pill ${ui.prodCat === 'all' ? 'on' : ''}" data-a="prod-cat" data-id="all">${t('All')}</button>${db.categories.filter((c) => c.id !== 'fav').map((c) => `<button class="pill ${ui.prodCat === c.id ? 'on' : ''}" data-a="prod-cat" data-id="${c.id}">${esc(N(c))}</button>`).join('')}</div>
         <div class="search" style="height:44px;width:300px;max-width:100%">${I.search}<input data-in="prodq" data-k="prodq" value="${esc(ui.prodQ)}" placeholder="${t('Name, SKU or barcode')}"></div></div>
@@ -940,8 +930,8 @@
           ${k.base ? '' : `<button class="linkbtn red" data-a="pk-del" data-i="${i}">${t('Remove')}</button>`}</div></div>
         <div class="row small" style="margin-top:8px"><span class="muted">${t('Barcode')}</span><input value="${esc(k.barcode)}" data-in="pk-bc" data-i="${i}" data-k="pkb${i}" id="pkb${i}" style="width:180px" inputmode="numeric" placeholder="${t('Scan or type')}"><button type="button" class="cam-btn sm" data-a="pk-cam" data-i="${i}" title="${t('Scan with camera')}" aria-label="${t('Scan with camera')}">${I.camera}</button></div>
         ${e && e.msg === 'dup' ? `<div class="errbox between" style="flex-wrap:wrap"><span class="row" style="gap:8px">${I.warn}<span>${t('This barcode is already assigned to {p}.', { p: `<b>${esc(N(prod(e.pid)))} · ${esc(t(e.pack))}</b>` })}</span></span>
-          <span class="row"><button class="btn sm danger" data-a="open-prod" data-id="${e.pid}">${t('Open that product')}</button></span>
-          <button class="linkbtn red" data-a="focus" data-target="pkb${i}" style="font-size:13.5px">${t('Enter a different barcode')}</button></div>` : e ? `<div class="errbox">${t(e.msg)}</div>` : ''}
+          <span class="row"><button class="btn sm danger" data-a="open-prod" data-id="${e.pid}">${t('Open product')}</button></span>
+          <button class="linkbtn red" data-a="focus" data-target="pkb${i}" style="font-size:13.5px">${t('Change barcode')}</button></div>` : e ? `<div class="errbox">${t(e.msg)}</div>` : ''}
       </div>`;
     }).join('');
     const vatOpts = [['standard', 'Standard rated · 15%'], ['zero', 'Zero rated · 0%'], ['exempt', 'Exempt'], ['out', 'Out of scope']].map(([k, l]) => `<label class="radio ${F.vat === k ? 'on' : ''}" data-a="${locked ? 'vat-locked' : 'vat'}" data-v="${k}"><input type="radio" name="vat" ${F.vat === k ? 'checked' : ''} ${locked ? 'disabled' : ''}>${t(l)}${k !== 'standard' ? `<small>${t('reason required')}</small>` : ''}</label>`).join('');
@@ -953,7 +943,7 @@
         <div style="display:flex;flex-direction:column;gap:16px">
           <div class="card"><h2>${t('Basics')}</h2><div class="grid2">
             <label class="field"><span>${t('Name · English')}</span><input class="input" dir="ltr" data-in="f" data-f="en" data-k="fen" value="${esc(F.en)}"></label>
-            <label class="field"><span class="between">${t('Name · Arabic')} <small>(${t('required')})</small><span class="spacer"></span>${F.en ? `<button type="button" class="linkbtn" data-a="translate-name" ${ui.trBusy ? 'disabled' : ''}>${t(ui.trBusy ? 'Translating…' : 'Translate from English')}</button>` : ''}</span>
+            <label class="field"><span class="between">${t('Name · Arabic')} <small>(${t('required')})</small><span class="spacer"></span>${F.en ? `<button type="button" class="linkbtn" data-a="translate-name" ${ui.trBusy ? 'disabled' : ''}>${t(ui.trBusy ? 'Translating…' : 'Translate')}</button>` : ''}</span>
               <input class="input ar ${has('ar') ? 'err' : ''}" dir="rtl" data-in="f" data-f="ar" data-k="far" value="${esc(F.ar)}">
               ${F.arAuto && F.ar ? `<small class="muted">${t('Machine translation. Check it and edit if needed.')}</small>` : ''}${ui.trErr ? `<small style="color:var(--red)">${t(ui.trErr)}</small>` : ''}</label>
             <label class="field"><span>SKU</span><input class="input" data-in="f" data-f="sku" data-k="fsku" value="${esc(F.sku)}"></label>
@@ -964,15 +954,14 @@
             <label class="row small" style="gap:8px"><input type="checkbox" data-in="fav" ${F.fav ? 'checked' : ''} style="accent-color:#105448;width:18px;height:18px">${t('Show in Favourites at checkout')}</label>
           </div></div>
           <div class="card"><h2>${t('Units, packs and barcodes')}</h2>${packs}
-            <button class="btn sm" data-a="pk-add" style="border-style:dashed;margin-top:4px">+ ${t('Add pack or barcode')}</button>
-            ${F.packs.length > 1 ? `<div class="packrow" style="margin:12px 0 0">${t('Check: receiving {n} {p} adds {q} pieces to stock.', { n: '<b>5</b>', p: `<b>${esc(big.name.toLowerCase())}s</b>`, q: `<b>${recvQty}</b>` })}</div>` : ''}
+            <button class="btn sm" data-a="pk-add" style="border-style:dashed;margin-top:4px">+ ${t('Add pack')}</button>
           </div>
         </div>
         <div class="panel" style="display:flex;flex-direction:column;gap:10px">
           <h2 style="margin:0">${t('Tax and price')}</h2>
           <div class="field"><span>${t('VAT category')}</span></div>${vatOpts}
           ${F.vat !== 'standard' ? `<label class="field"><span>${t('Reason')}</span><input class="input ${has('vatReason') ? 'err' : ''}" data-in="f" data-f="vatReason" data-k="fvr" value="${esc(F.vatReason)}" placeholder="${t('e.g. Basic food item listed by ZATCA')}"></label>` : ''}
-          <div class="small muted row" style="gap:6px">${I.lock}${t('Owner and Manager only · changes go to audit history')}</div>
+          <div class="small muted row" style="gap:6px">${I.lock}${t('Owner and Manager only')}</div>
           <label class="field"><span>${t('Selling price per {u} · incl. VAT', { u: esc(F.weighted ? 'kg' : (F.packs[0].name || 'piece').toLowerCase()) })}</span><div class="inwrap"><input class="input big num ${has('price') ? 'err' : ''}" data-in="f" data-f="price" data-k="fprice" value="${esc(F.price)}" inputmode="decimal" placeholder="0.00"><span class="suffix">${SAR()}</span></div></label>
           <div class="totals num"><div class="between"><span>${t('Net price')}</span><span>${money(net)}</span></div><div class="between"><span>${t('VAT {r}%', { r: rate * 100 })}</span><span>${money(vat)}</span></div><hr><div class="between" style="font-weight:600;color:var(--green)"><span>${t('Shelf price')}</span><span>${money(price)} SAR</span></div></div>
           <label class="field"><span>${t('Purchase cost per {p} · excl. VAT', { p: esc((big.name || 'piece').toLowerCase()) })} <small>(${t('optional')})</small></span><input class="input num" data-in="f" data-f="cost" data-k="fcost" value="${esc(F.cost)}" inputmode="decimal"></label>
@@ -981,7 +970,7 @@
       </div>
       <div class="savebar">${issues.length ? `<span class="err">${t(issues.length === 1 ? 'Fix 1 issue to save' : 'Fix {n} issues to save', { n: issues.length })}</span>` : ''}<span class="spacer"></span>
         <a class="btn ghost" href="#/products" style="text-decoration:none" data-a="cancel-form">${t('Cancel')}</a>
-        <button class="btn" data-a="save-prod" data-draft="1" ${issues.length ? 'disabled' : ''}>${t('Save as draft')}</button>
+        <button class="btn" data-a="save-prod" data-draft="1" ${issues.length ? 'disabled' : ''}>${t('Save draft')}</button>
         <button class="btn primary" data-a="save-prod" ${issues.length ? 'disabled' : ''}>${t('Save product')} ${arrow()}</button></div>`;
   }
   function saveProduct(draft) {
@@ -1032,7 +1021,7 @@
       if (p.weighted) items.push({ p, label: t('Scale label · {w} kg', { w: '1.250' }), code: eanCheck(k.barcode.slice(0, 7) + '01250') });
       else if (/^\d{13}$/.test(k.barcode)) items.push({ p, label: k.qty > 1 ? `${t(k.name)} · ${k.qty}` : t(k.name), code: k.barcode });
     }));
-    return `<div class="page-h"><div><h1>${t('Test barcodes')}</h1><div class="sub">${t('Open this page on another screen or print it, then scan these with the camera at checkout.')}</div></div>
+    return `<div class="page-h"><div><h1>${t('Test barcodes')}</h1></div>
       <button class="btn noprint" data-a="print-sheet">${I.print}${t('Print')}</button></div>
       <div class="bc-grid">${items.map((x) => `<div class="bc"><span class="nm">${esc(N(x.p))}</span><span class="small muted">${esc(x.label)} · ${money(x.p.price)}${x.p.weighted ? ' /kg' : ''}</span>${ean13Svg(x.code)}<span class="cd">${x.code}</span></div>`).join('')}</div>`;
   }
@@ -1041,7 +1030,7 @@
   function viewInventory() {
     const low = db.products.filter((p) => p.stock <= p.reorder);
     const value = db.products.reduce((s, p) => s + p.stock * p.cost, 0);
-    return `<div class="page-h"><div><h1>${t('Inventory')}</h1><div class="sub">${t('Stock on hand by product. Receiving a carton adds its pieces automatically.')}</div></div>
+    return `<div class="page-h"><div><h1>${t('Inventory')}</h1></div>
       <button class="btn primary" data-a="receive">${t('Receive delivery')}</button></div>
       <div class="stats"><div class="stat"><div class="k">${t('Products')}</div><div class="v">${db.products.length}</div><div class="d">${t('{n} active', { n: db.products.filter((p) => p.active).length })}</div></div>
         <div class="stat"><div class="k">${t('Below reorder level')}</div><div class="v">${low.length}</div><div class="d">${t('{n} out of stock', { n: db.products.filter((p) => p.stock <= 0).length })}</div></div>
@@ -1053,7 +1042,7 @@
         <td class="r"><button class="btn sm ghost" data-a="receive" data-id="${p.id}">${t('Receive')}</button></td></tr>`).join('')}</tbody></table></div>`;
   }
   function viewSuppliers() {
-    return `<div class="page-h"><div><h1>${t('Suppliers')}</h1><div class="sub">${t('Who delivers what, and what the shop owes them.')}</div></div></div>
+    return `<div class="page-h"><div><h1>${t('Suppliers')}</h1></div></div>
       <div class="tblwrap"><table class="tbl"><thead><tr><th>${t('Supplier')}</th><th>${t('Phone')}</th><th>${t('Supplies')}</th><th>${t('Last delivery')}</th><th class="r">${t('Shop owes')}</th></tr></thead>
       <tbody>${db.suppliers.map((s) => `<tr><td><b>${esc(N(s))}</b><div class="small muted">${esc(N2(s))}</div></td><td class="num">${esc(s.phone)}</td><td>${esc(s.cats)}</td><td>${fmtDate(s.lastDelivery)}</td><td class="r num">${s.balance ? money(s.balance) : '—'}</td></tr>`).join('')}</tbody></table></div>`;
   }
@@ -1083,23 +1072,21 @@
         <div class="card"><h2 style="font-size:18px;margin-bottom:16px">${t('Last 7 days')}</h2><div class="bars">${days.map((x) => bar(x.d.toLocaleDateString(locale(), { weekday: 'short', day: 'numeric' }), x.v, maxD)).join('')}</div></div>
         <div class="card"><h2 style="font-size:18px;margin-bottom:16px">${t('Top products by sales')}</h2><div class="bars">${topList.map(([pid, v]) => bar(esc(N(prod(pid))), v, maxT)).join('')}</div></div>
         <div class="card"><h2 style="font-size:18px;margin-bottom:16px">${t('ZATCA reporting')}</h2>
-          <div class="bars">${['reported', 'queued', 'offline'].map((z) => `<div class="between"><span>${zTag(z)}</span><b>${db.invoices.filter((i) => i.zatca === z).length}</b></div>`).join('')}</div>
-          <p class="small muted">${t('Simplified invoices are reported within 24 hours. Use Sync now to report queued invoices.')}</p></div>
+          <div class="bars">${['reported', 'queued', 'offline'].map((z) => `<div class="between"><span>${zTag(z)}</span><b>${db.invoices.filter((i) => i.zatca === z).length}</b></div>`).join('')}</div></div>
       </div>
       <div class="card" style="margin-top:16px"><h2 style="font-size:18px;margin-bottom:12px">${t('Audit history')}</h2>
-        ${db.audit.length ? `<div class="tblwrap" style="border:0"><table class="tbl"><tbody>${db.audit.slice(0, 15).map((a) => `<tr><td class="small muted num">${fmtDT(a.at)}</td><td>${esc(a.by)}</td><td>${esc(a.what)}</td></tr>`).join('')}</tbody></table></div>` : `<div class="muted">${t('No changes recorded in this session yet.')}</div>`}</div>`;
+        ${db.audit.length ? `<div class="tblwrap" style="border:0"><table class="tbl"><tbody>${db.audit.slice(0, 15).map((a) => `<tr><td class="small muted num">${fmtDT(a.at)}</td><td>${esc(a.by)}</td><td>${esc(a.what)}</td></tr>`).join('')}</tbody></table></div>` : `<div class="muted">${t('No changes yet.')}</div>`}</div>`;
   }
   function viewSettings() {
     const s = db.settings;
     const f = (k, label, dir) => `<label class="field"><span>${t(label)}</span><input class="input" ${dir ? `dir="${dir}"` : ''} data-in="setting" data-f="${k}" data-k="s${k}" value="${esc(s[k])}"></label>`;
-    return `<div class="page-h"><div><h1>${t('Settings')}</h1><div class="sub">${t('Shop details printed on every invoice.')}</div></div></div>
+    return `<div class="page-h"><div><h1>${t('Settings')}</h1></div></div>
       <div class="pf">
-        <div class="card"><h2>${t('Shop')}</h2><div class="grid2">${f('shopAr', 'Shop name · Arabic', 'rtl')}${f('shopEn', 'Shop name · English')}${f('branch', 'Branch')}${f('branchAr', 'Branch · Arabic', 'rtl')}${f('address', 'Address')}${f('vatNo', 'VAT registration no.')}${f('cr', 'Commercial registration')}</div>
-          <p class="small muted">${t('Changes save automatically.')}</p></div>
+        <div class="card"><h2>${t('Shop')}</h2><div class="grid2">${f('shopAr', 'Shop name · Arabic', 'rtl')}${f('shopEn', 'Shop name · English')}${f('branch', 'Branch')}${f('branchAr', 'Branch · Arabic', 'rtl')}${f('address', 'Address')}${f('vatNo', 'VAT registration no.')}${f('cr', 'Commercial registration')}</div></div>
         <div style="display:flex;flex-direction:column;gap:16px">
           <div class="card"><h2>${t('Language')}</h2><div class="row"><button class="pill outline ${!isAr() ? 'on' : ''}" data-a="set-lang" data-l="en">English</button><button class="pill outline ${isAr() ? 'on' : ''}" data-a="set-lang" data-l="ar">العربية</button></div></div>
           <div class="card"><h2>${t('Employees')}</h2><div class="list" style="max-height:none">${db.users.map((u) => `<div class="between" style="padding:8px 0;border-bottom:1px solid var(--line)"><span><b>${esc(isAr() ? u.nameAr : u.name)}</b> · ${t(cap(u.role))}</span><span class="small muted">PIN ${u.pin}</span></div>`).join('')}</div></div>
-          <div class="card"><h2>${t('Demo data')}</h2><p class="muted small">${t('This proof of concept stores everything in your browser. Reset to start over with the sample shop.')}</p><button class="btn danger" data-a="reset">${t('Reset demo data')}</button></div>
+          <div class="card"><h2>${t('Demo data')}</h2><button class="btn danger" data-a="reset">${t('Reset demo data')}</button></div>
         </div>
       </div>`;
   }
@@ -1125,14 +1112,14 @@
   function modalBody(m) {
     switch (m.kind) {
       case 'browse': return browseBody(m);
-      case 'pin-unlock': return `${badge('Registered device', 'lime')}<h3>${t('Enter your PIN')}</h3><p>${t('Cashier 1111 · Manager 1234 · Owner 9999')}</p>${pinPad(m)}<div class="btns one"><button class="btn" data-a="close">${t('Cancel')}</button></div>`;
+      case 'pin-unlock': return `${badge('Registered device', 'lime')}<h3>${t('Enter your PIN')}</h3>${pinPad(m)}<div class="btns one"><button class="btn" data-a="close">${t('Cancel')}</button></div>`;
       case 'approve': return `${badge('Manager approval', 'lime')}<h3>${t('Approve this discount')}</h3>
         <div class="box"><div class="between"><b>${esc(N(m.line))}</b><b>−${money(m.amount)}</b></div><div class="small muted">${t('Reason: {r} · Bill total {a} → {b}', { r: esc(t(m.reason)), a: money(m.before), b: money(r2(m.before - m.amount)) })}</div></div>
         <div class="field"><span>${t('Manager PIN')}</span></div>${pinPad(m)}<div class="btns one"><button class="btn" data-a="close">${t('Cancel')}</button></div>`;
       case 'discount': {
         const l = ui.cart.lines[m.i]; const gross = r2(l.price * l.qty);
         const amt = m.mode === 'pct' ? r2(gross * Number(m.value || 0) / 100) : r2(Number(m.value || 0));
-        return `<h3>${t('Discount · {n}', { n: esc(N(l)) })}</h3><p>${t('Line total {a} SAR. Cashier discounts need a manager PIN.', { a: money(gross) })}</p>
+        return `<h3>${t('Discount · {n}', { n: esc(N(l)) })}</h3><p>${t('Line total {a} SAR', { a: money(gross) })}</p>
           <div class="row"><button class="pill outline ${m.mode !== 'pct' ? 'on' : ''}" data-a="disc-mode" data-m="amt">SAR</button><button class="pill outline ${m.mode === 'pct' ? 'on' : ''}" data-a="disc-mode" data-m="pct">%</button></div>
           <input class="input big num" data-in="disc-val" data-k="discv" value="${esc(m.value || '')}" inputmode="decimal" placeholder="0" autofocus>
           <div class="field"><span>${t('Reason')}</span><div class="row" style="flex-wrap:wrap">${['Damaged pack', 'Near expiry', 'Price match', 'Loyal customer'].map((r) => `<button class="pill outline ${m.reason === r ? 'on' : ''}" data-a="disc-reason" data-r="${r}">${t(r)}</button>`).join('')}</div></div>
@@ -1141,17 +1128,17 @@
       }
       case 'weigh': {
         const p = prod(m.pid);
-        return `${badge('Scale', 'lime')}<h3>${esc(N(p))}</h3><p>${t('{p} SAR per kg. Place the item on the scale or type the weight.', { p: money(p.price) })}</p>
+        return `${badge('Scale', 'lime')}<h3>${esc(N(p))}</h3><p>${t('{p} SAR per kg', { p: money(p.price) })}</p>
           <div class="inwrap"><input class="input big num" data-in="weight" data-k="weight" value="${esc(m.w || '')}" inputmode="decimal" placeholder="0.000" autofocus><span class="suffix">kg</span></div>
           <div class="box between"><span>${t('Line total')}</span><b class="num">${money(r2(p.price * Number(m.w || 0)))} SAR</b></div>
-          <div class="btns"><button class="btn" data-a="read-scale">${t('Read scale')}</button><button class="btn primary" data-a="weigh-add" ${Number(m.w) > 0 ? '' : 'disabled'}>${t('Add to bill')}</button></div><button class="linkbtn" data-a="close" style="align-self:center">${t('Cancel')}</button>`;
+          <div class="btns"><button class="btn" data-a="read-scale">${t('Read scale')}</button><button class="btn primary" data-a="weigh-add" ${Number(m.w) > 0 ? '' : 'disabled'}>${t('Add')}</button></div><button class="linkbtn" data-a="close" style="align-self:center">${t('Cancel')}</button>`;
       }
       case 'cust': {
         const q = (m.q || '').toLowerCase();
         const list = db.customers.filter((c) => !q || c.en.toLowerCase().includes(q) || c.ar.includes(q) || c.phone.replace(/\s/g, '').includes(q.replace(/\s/g, '')));
         return `<h3>${t('Select customer')}</h3><div class="search" style="height:48px">${I.search}<input data-in="cust-q" data-k="custmq" value="${esc(m.q || '')}" placeholder="${t('Name or phone')}" autofocus></div>
           <div class="list"><button data-a="cust-set" data-id=""><span><b>${t('Walk-in customer')}</b></span></button>${list.map((c) => `<button data-a="cust-set" data-id="${c.id}"><span><b>${esc(N(c))}</b><div class="small muted">${esc(c.phone)}</div></span><span class="small ${c.credit ? '' : 'muted'}">${c.credit ? t('Credit · {a} available', { a: money(creditAvailable(c)) }) : t('No credit')}</span></button>`).join('')}</div>
-          <div class="btns"><button class="btn" data-a="new-cust">${t('Create new customer')}</button><button class="btn ghost" data-a="close">${t('Cancel')}</button></div>`;
+          <div class="btns"><button class="btn" data-a="new-cust">${t('New customer')}</button><button class="btn ghost" data-a="close">${t('Cancel')}</button></div>`;
       }
       case 'new-cust': {
         const d = m.d || {};
@@ -1160,31 +1147,29 @@
           <label class="field"><span>${t('Name · English')}</span><input class="input" data-in="nc" data-f="en" data-k="ncen" value="${esc(d.en || '')}"></label>
           <label class="field"><span>${t('Phone')}</span><input class="input" data-in="nc" data-f="phone" data-k="ncph" value="${esc(d.phone || '')}" placeholder="+966"></label>
           <label class="field"><span>${t('VAT no. (business)')}</span><input class="input" data-in="nc" data-f="vatNo" data-k="ncvat" value="${esc(d.vatNo || '')}" placeholder="${t('Optional')}"></label></div>
-          ${isMgr() ? `<label class="row" style="gap:8px"><input type="checkbox" data-in="nc-credit" ${d.credit ? 'checked' : ''} style="width:18px;height:18px;accent-color:#105448">${t('Open a credit account · limit 1,000 SAR, monthly terms')}</label>` : `<p class="small">${t('A manager can open a credit account later.')}</p>`}
+          ${isMgr() ? `<label class="row" style="gap:8px"><input type="checkbox" data-in="nc-credit" ${d.credit ? 'checked' : ''} style="width:18px;height:18px;accent-color:#105448">${t('Open a credit account')}</label>` : ''}
           <div class="btns"><button class="btn primary" data-a="nc-save" ${(d.ar || d.en) && d.phone ? '' : 'disabled'}>${t('Save customer')}</button><button class="btn" data-a="close">${t('Cancel')}</button></div>`;
       }
-      case 'clear': return `<h3>${t('Clear this draft?')}</h3><p>${t('All lines on the bill will be removed. Nothing has been charged.')}</p><div class="btns"><button class="btn danger" data-a="clear-ok">${t('Clear draft')}</button><button class="btn" data-a="close">${t('Keep bill')}</button></div>`;
+      case 'clear': return `<h3>${t('Clear this draft?')}</h3><div class="btns"><button class="btn danger" data-a="clear-ok">${t('Clear draft')}</button><button class="btn" data-a="close">${t('Keep bill')}</button></div>`;
       case 'conn': return `${badge('Connection lost', 'red')}<h3>${t("Can't reach the shop server")}</h3>
         <div class="box" style="background:none;padding:0"><div class="between"><span class="row" style="gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:var(--red)"></span>${t('Shop server · Wi-Fi')}</span><b style="color:var(--red)">${t('Lost')}</b></div>
         <div class="between"><span class="row" style="gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:${ui.demo.internet ? 'var(--green-mid)' : 'var(--red)'}"></span>${t('Internet')}</span><b>${t(ui.demo.internet ? 'Online' : 'Offline')}</b></div></div>
-        <p>${t('Your bill is kept on this device. Nothing is sent twice when the connection returns.')}</p>
-        <div class="btns"><button class="btn primary" data-a="retry-conn">${t('Retry connection')}</button><button class="btn" data-a="close">${t('Keep editing')}</button></div>`;
-      case 'terminal': return `${badge('Card terminal', 'lime')}<h3>${t('Waiting for the terminal…')}</h3><p>${t('Ask the customer to tap or insert their card for {a} SAR.', { a: money(m.amount) })}</p><div class="box" style="text-align:center">⏳</div>`;
-      case 'terminal-unknown': return `${badge('Outcome unknown', 'amber')}<h3>${t('Card payment · no reply from terminal')}</h3><p>${t('{a} SAR may or may not have been charged. Check first so the customer isn\'t charged twice.', { a: money(m.amount) })}</p>
-        <div class="btns"><button class="btn primary" data-a="term-check">${t('Check status')}</button><button class="btn ghost" data-a="term-retry" ${m.checked ? '' : 'disabled'}>${t('Retry after check')}</button></div>
-        ${m.checked ? `<div class="box">${t('Terminal reports: not charged. It is safe to retry.')}</div>` : ''}<button class="linkbtn" data-a="close" style="align-self:center">${t('Cancel payment')}</button>`;
-      case 'printer': return `${badge('Printer unavailable', 'amber')}<h3>${t('The sale is saved — only printing failed')}</h3><p>${t('{i} is complete. Counter printer 1 is out of paper.', { i: m.invId })}</p>
+        <div class="btns"><button class="btn primary" data-a="retry-conn">${t('Retry')}</button><button class="btn" data-a="close">${t('Back')}</button></div>`;
+      case 'terminal': return `${badge('Card terminal', 'lime')}<h3>${t('Waiting for the terminal…')}</h3><div class="box num" style="text-align:center;font-size:22px;font-weight:700">${money(m.amount)} SAR</div>`;
+      case 'terminal-unknown': return `${badge('Outcome unknown', 'amber')}<h3>${t('Card payment · no reply from terminal')}</h3><p>${t('{a} SAR may have been charged. Check before retrying.', { a: money(m.amount) })}</p>
+        <div class="btns"><button class="btn primary" data-a="term-check">${t('Check status')}</button><button class="btn ghost" data-a="term-retry" ${m.checked ? '' : 'disabled'}>${t('Retry')}</button></div>
+        ${m.checked ? `<div class="box">${t('Not charged. Safe to retry.')}</div>` : ''}<button class="linkbtn" data-a="close" style="align-self:center">${t('Cancel payment')}</button>`;
+      case 'printer': return `${badge('Printer unavailable', 'amber')}<h3>${t('The sale is saved — only printing failed')}</h3><p>${t('{i} · printer out of paper', { i: m.invId })}</p>
         <div class="btns"><button class="btn primary" data-a="print-retry" data-id="${m.invId}">${t('Retry print')}</button><button class="btn" data-a="print-other" data-id="${m.invId}">${t('Other printer')}</button></div>
-        <button class="linkbtn" style="align-self:center;font-size:14px" data-a="send" data-id="${m.invId}">${t('Send digital copy instead')}</button><button class="linkbtn" data-a="close" style="align-self:center;color:var(--muted)">${t('Close')}</button>`;
-      case 'locked': return `${badge('Permission needed', 'lime')}<h3>${t('Tax category is locked')}</h3><p>${t('Changing VAT category needs the Owner or Manager role. You\'re signed in as Cashier.')}</p>
+        <button class="linkbtn" style="align-self:center;font-size:14px" data-a="send" data-id="${m.invId}">${t('Send copy')}</button><button class="linkbtn" data-a="close" style="align-self:center;color:var(--muted)">${t('Close')}</button>`;
+      case 'locked': return `${badge('Permission needed', 'lime')}<h3>${t('Tax category is locked')}</h3>
         <div class="btns"><button class="btn primary" data-a="switch-user">${t('Ask manager')}</button><button class="btn" data-a="close">${t('Go back')}</button></div>`;
       case 'price-changed': return `${badge('Information changed', 'outline')}<h3>${t('A price changed while this bill was open')}</h3>
         ${m.items.map((x) => `<div class="box between"><span>${esc(N(x))}</span><b class="num">${money(x.old)} ${isAr() ? '←' : '→'} ${money(x.now)}</b></div>`).join('')}
-        <p style="color:var(--green)">${t('Refresh the bill before taking payment so the invoice matches the shelf price.')}</p>
         <div class="btns"><button class="btn primary" data-a="refresh-bill">${t('Refresh bill')}</button><button class="btn" data-a="close" style="background:transparent">${t('Review lines')}</button></div>`;
       case 'send': {
         const inv = db.invoices.find((i) => i.id === m.invId), cu = inv && cust(inv.customerId);
-        return `<h3>${t('Send digital copy')}</h3><p>${t('Send {i} as a PDF with the ZATCA QR code.', { i: m.invId })}</p>
+        return `<h3>${t('Send copy')}</h3>
           <div class="row">${['WhatsApp', 'SMS', 'Email'].map((c) => `<button class="pill outline ${(m.ch || 'WhatsApp') === c ? 'on' : ''}" data-a="send-ch" data-c="${c}">${c}</button>`).join('')}</div>
           <input class="input" data-in="send-to" data-k="sendto" value="${esc(m.to != null ? m.to : (cu ? cu.phone : ''))}" placeholder="${(m.ch || 'WhatsApp') === 'Email' ? 'name@example.com' : '+966 5x xxx xxxx'}" autofocus>
           <div class="btns"><button class="btn primary" data-a="send-ok">${t('Send')}</button><button class="btn" data-a="close">${t('Cancel')}</button></div>`;
@@ -1200,7 +1185,7 @@
             <div class="between muted"><span>${t('Card')}</span><span>${money(card)}</span></div><div class="between muted"><span>${t('On credit')}</span><span>${money(credit)}</span></div></div>
           <label class="field"><span>${t('Counted cash')}</span><input class="input num" data-in="counted" data-k="counted" value="${esc(m.counted || '')}" inputmode="decimal" placeholder="${money(500 + cash)}" autofocus></label>
           ${m.counted ? `<div class="box between"><span>${t('Difference')}</span><b class="num" style="color:${Math.abs(Number(m.counted) - 500 - cash) < 0.01 ? 'var(--green)' : 'var(--red)'}">${money(r2(Number(m.counted) - 500 - cash))}</b></div>` : ''}
-          <div class="btns"><button class="btn primary" data-a="shift-ok">${t('Close shift & sign out')}</button><button class="btn" data-a="close">${t('Cancel')}</button></div>`;
+          <div class="btns"><button class="btn primary" data-a="shift-ok">${t('Close shift')}</button><button class="btn" data-a="close">${t('Cancel')}</button></div>`;
       }
       case 'receive': {
         const p = prod(m.pid || db.products[0].id);
@@ -1210,22 +1195,22 @@
           <div class="field"><span>${t('Pack')}</span><div class="row" style="flex-wrap:wrap">${p.packs.map((k, i) => `<button class="pill outline ${(m.pack || 0) === i ? 'on' : ''}" data-a="rc-pack" data-i="${i}">${esc(t(k.name))}${k.qty > 1 ? ' · ' + k.qty : ''}</button>`).join('')}</div></div>
           <label class="field"><span>${t('Received quantity')}</span><input class="input big num" data-in="rc-qty" data-k="rcq" value="${esc(m.qty || '')}" inputmode="decimal" placeholder="0" autofocus></label>
           <div class="box">${t('Adds {n} to stock · {a} → {b}', { n: `<b>${qtyFmt(add, p.weighted)}</b>`, a: qtyFmt(p.stock, p.weighted), b: `<b>${qtyFmt(r2(p.stock + add), p.weighted)}</b>` })}</div>
-          <div class="btns"><button class="btn primary" data-a="rc-ok" ${add > 0 ? '' : 'disabled'}>${t('Add to stock')}</button><button class="btn" data-a="close">${t('Cancel')}</button></div>`;
+          <div class="btns"><button class="btn primary" data-a="rc-ok" ${add > 0 ? '' : 'disabled'}>${t('Receive')}</button><button class="btn" data-a="close">${t('Cancel')}</button></div>`;
       }
       case 'credit-settings': {
         const d = m.d;
         return `<h3>${t('Credit settings')}</h3><label class="row" style="gap:8px"><input type="checkbox" data-in="cs-credit" ${d.credit ? 'checked' : ''} style="width:18px;height:18px;accent-color:#105448">${t('Allow sales on credit')}</label>
           <div class="grid2"><label class="field"><span>${t('Credit limit')}</span><input class="input num" data-in="cs" data-f="limit" data-k="cslim" value="${esc(d.limit)}"></label>
           <label class="field"><span>${t('Terms')}</span><select class="input" data-in="cs" data-f="terms" data-k="csterms">${['monthly', 'net15', 'net30'].map((k) => `<option value="${k}" ${d.terms === k ? 'selected' : ''}>${t(termsLabel(k))}</option>`).join('')}</select></label></div>
-          <p class="small">${t('Changes go to audit history.')}</p><div class="btns"><button class="btn primary" data-a="cs-save">${t('Save')}</button><button class="btn" data-a="close">${t('Cancel')}</button></div>`;
+          <div class="btns"><button class="btn primary" data-a="cs-save">${t('Save')}</button><button class="btn" data-a="close">${t('Cancel')}</button></div>`;
       }
       case 'statement': {
         const c = cust(m.id); const unpaid = db.invoices.filter((i) => i.customerId === c.id && i.outstanding > 0);
-        return `<h3>${t('Statement · {n}', { n: esc(N(c)) })}</h3><p>${t('Summary of open invoices. A statement never creates a new sale.')}</p>
+        return `<h3>${t('Statement · {n}', { n: esc(N(c)) })}</h3>
           <div class="box num">${unpaid.map((i) => `<div class="between"><span>${i.id} · ${fmtDay(i.date)}</span><span>${money(i.outstanding)}</span></div>`).join('') || t('Nothing outstanding.')}<hr style="border:0;border-top:1px dashed var(--line)"><div class="between"><b>${t('Balance due')}</b><b>${money(outstandingOf(c))} SAR</b></div></div>
-          <div class="btns"><button class="btn primary" data-a="statement-send" data-id="${c.id}">${t('Send by {r}', { r: c.reminders })}</button><button class="btn" data-a="close">${t('Close')}</button></div>`;
+          <div class="btns"><button class="btn primary" data-a="statement-send" data-id="${c.id}">${t('Send')}</button><button class="btn" data-a="close">${t('Close')}</button></div>`;
       }
-      case 'confirm-reset': return `<h3>${t('Reset demo data?')}</h3><p>${t('All sales, products and customers go back to the sample shop.')}</p><div class="btns"><button class="btn danger" data-a="reset-ok">${t('Reset')}</button><button class="btn" data-a="close">${t('Cancel')}</button></div>`;
+      case 'confirm-reset': return `<h3>${t('Reset demo data?')}</h3><div class="btns"><button class="btn danger" data-a="reset-ok">${t('Reset')}</button><button class="btn" data-a="close">${t('Cancel')}</button></div>`;
       case 'line': {
         const l = ui.cart.lines[ui.sel];
         if (!l) return `<div class="btns one"><button class="btn primary" data-a="close">${t('Done')}</button></div>`;
@@ -1238,7 +1223,7 @@
         return `<div class="menu-who"><b>${esc(isAr() ? u.nameAr : u.name)} · ${t(cap(u.role))}</b><span>${esc(isAr() ? db.settings.shopAr : db.settings.shopEn)} · ${esc(isAr() ? db.settings.branchAr : db.settings.branch)}</span></div>
           <div class="menu-links">${links}</div>
           <div class="menu-row"><button class="btn sm ghost" data-a="lang">${isAr() ? 'English' : 'العربية'}</button></div>
-          <div class="menu-row"><button class="btn sm ghost" data-a="close-shift">${t('Close shift')}</button><button class="btn sm ghost" data-a="switch-user">${t('Lock · switch employee')}</button></div>`;
+          <div class="menu-row"><button class="btn sm ghost" data-a="close-shift">${t('Close shift')}</button><button class="btn sm ghost" data-a="switch-user">${t('Switch user')}</button></div>`;
       }
       case 'order': return orderBody(m);
       case 'info': return `<h3>${t(m.title)}</h3><p>${t(m.body)}</p><div class="btns one"><button class="btn primary" data-a="close">${t('OK')}</button></div>`;
@@ -1344,7 +1329,7 @@
     lang: () => { db.settings.lang = isAr() ? 'en' : 'ar'; save(); render(); },
     'set-lang': (el) => { db.settings.lang = el.dataset.l; save(); render(); },
     'toggle-pw': () => { const p = $('#pw'); p.type = p.type === 'password' ? 'text' : 'password'; },
-    forgot: () => openModal({ kind: 'info', title: 'Forgot password?', body: 'Ask the shop owner or manager to reset it from Settings. In this demo any password works.' }),
+    forgot: () => openModal({ kind: 'info', title: 'Forgot password?', body: 'Ask the owner or manager to reset it.' }),
     'pin-unlock': () => openModal({ kind: 'pin-unlock', pin: '' }),
     'switch-user': () => openModal({ kind: 'pin-unlock', pin: '' }),
     'pin-key': (el) => {
@@ -1367,8 +1352,8 @@
     sync: () => {
       if (ui.zatcaLive) {
         return zatcaFlush().then(() => fetch('api/zatca/retry', { method: 'POST' })).then((r) => r.json())
-          .then((r) => toast(t('Synced with ZATCA · {n} still waiting', { n: r.stillPending || 0 })))
-          .catch(() => toast(t('The POS service is not answering'), 'bad'));
+          .then((r) => toast(t('Synced · {n} waiting', { n: r.stillPending || 0 })))
+          .catch(() => toast(t('Service offline'), 'bad'));
       }
       if (!ui.demo.server) return openModal({ kind: 'conn' });
       if (!ui.demo.internet) return toast(t('Internet is offline. Queued invoices will report when it returns.'), 'warn');
