@@ -24,7 +24,7 @@ function parse(text) {
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
-  const key = process.env.NVIDIA_API_KEY;
+  const key = String(process.env.NVIDIA_API_KEY || '').trim().replace(/^["']|["']$/g, '').replace(/^Bearer\s+/i, '').replace(/^NVIDIA_API_KEY=/, '');
   if (!key) return res.status(503).json({ error: 'NVIDIA_API_KEY is not set' });
   const { image, catalog } = req.body || {};
   if (!image || !/^data:image\/(jpeg|png);base64,/.test(image) || image.length > 400000) return res.status(400).json({ error: 'Bad image' });
@@ -45,7 +45,7 @@ module.exports = async (req, res) => {
     await new Promise((ok) => setTimeout(ok, 2000 * (attempt + 1)));
   }
   if (!r.ok) {
-    console.error('nvidia', r.status, (await r.text()).slice(0, 500));
+    console.error('nvidia', r.status, 'key', key.slice(0, 6) + '…', key.length, (await r.text()).slice(0, 500));
     return res.status(502).json({ error: 'NVIDIA ' + r.status });
   }
   const j = await r.json();
