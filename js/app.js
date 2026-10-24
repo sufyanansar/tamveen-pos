@@ -973,7 +973,7 @@
   }
 
   // ---------------------------------------------------------------- views: receive stock from a delivery document
-  // Photo → Nemotron via api/scan (falls back to in-browser Tesseract.js) → lines matched by barcode, saved supplier code, then name → review → add to stock.
+  // Photo → in-browser OCR (Tesseract.js) → lines matched by barcode, saved supplier code, then name → review → add to stock.
   const RC_SAMPLE = 'ALMARAI CO.\nDELIVERY NOTE DN-55821 24/10/2026\nCode Item Qty Price Total\n6281000001028 Fresh Milk 1L Carton 4 CTN 62.40 249.60\nAL-220 Laban 1L 24 4.40 105.60\nWHT CHEESE 500G x1O 14.30 143.00\n6281000007013 Orange Juice 1.4L 12 8.20 98.40\nYoghurt Cup 170g 24 1.50 36.00\nSubtotal 632.60 VAT 15% 94.89\nTotal SAR 727.49';
   const RC_MEMORY = { 's1|AL-220': 'p9' };
   const RC_SKIP = /\b(sub ?total|total|vat|tax|date|invoice|purchase order|delivery note|received|thank|items|tel|phone|code item|barcode description)\b/i;
@@ -1037,60 +1037,18 @@
       const m = rcMatch(l, R.sup);
       return Object.assign(l, m, { on: !!m.pid, qty: r2(l.qty * m.mult) });
     });
-    rcDone('Tesseract');
-  }
-  function rcDone(engine, secs) {
-    const R = ui.rcv; clearInterval(R.timer);
-    R.busy = false; R.status = t('{n} lines', { n: R.lines.length }) + ' · ' + engine + (secs ? ' · ' + secs + 's' : ''); render();
+    R.busy = false; R.status = t('{n} lines', { n: R.lines.length }); render();
   }
   function rcLoadTess() {
     if (window.Tesseract) return Promise.resolve();
     return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
   }
-  function rcTess() {
-    const R = ui.rcv;
-    rcLoadTess().then(() => window.Tesseract.recognize(R.img, 'eng', { logger: (m) => {
-      if (m.status === 'recognizing text') { R.status = t('Reading…') + ' Tesseract ' + Math.round(m.progress * 100) + '%'; const st = $('#rc-status'); if (st) st.textContent = R.status; }
-    } })).then((r) => rcRead(r.data.text)).catch(() => { clearInterval(R.timer); R.busy = false; R.status = t('Could not read the photo.'); render(); });
-  }
-  // Shrink the photo to a JPEG data URL small enough for NVIDIA's inline image limit.
-  function rcShrink(url) {
-    return new Promise((res, rej) => {
-      const im = new Image();
-      im.onload = () => {
-        let side = 2000, q = 0.88;
-        for (;;) {
-          const k = Math.min(1, side / Math.max(im.naturalWidth, im.naturalHeight));
-          const c = document.createElement('canvas'); c.width = Math.round(im.naturalWidth * k); c.height = Math.round(im.naturalHeight * k);
-          c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
-          const d = c.toDataURL('image/jpeg', q);
-          if (d.length <= 180000 || side < 500) return res(d);
-          side = Math.round(side * 0.85); q = Math.max(0.6, q - 0.04);
-        }
-      };
-      im.onerror = rej; im.src = url;
-    });
-  }
-  const rcNum = (v) => Number(String(v == null ? '' : v).replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/,/g, ''));
-  function rcNemotron() {
-    const R = ui.rcv;
-    const catalog = db.products.map((p) => `${p.id}: ${p.en} (barcode ${p.packs.map((k) => k.barcode).filter(Boolean).join(', ') || '-'})`).join('\n');
-    return rcShrink(R.img).then((image) => fetch('api/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image, catalog }) }))
-      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-      .then((j) => {
-        R.lines = j.lines.filter((l) => l && rcNum(l.qty) > 0).map((l) => {
-          const pid = prod(l.product_id) ? l.product_id : '';
-          return { desc: String(l.printed || ''), barcode: l.barcode ? String(l.barcode) : null, code: null, qty: r2(rcNum(l.qty)), pid, mult: 1, level: pid ? 'likely' : 'none', why: pid ? 'AI' : '', on: !!pid };
-        });
-        rcDone('Nemotron', j.secs);
-      });
-  }
   function rcPhoto(file) {
     const R = ui.rcv; if (R.img) URL.revokeObjectURL(R.img);
-    R.img = URL.createObjectURL(file); R.lines = []; R.busy = true; R.status = t('Reading…') + ' Nemotron'; render();
-    const t0 = Date.now(); clearInterval(R.timer);
-    R.timer = setInterval(() => { const st = $('#rc-status'); if (st && R.busy && /Nemotron/.test(R.status)) st.textContent = R.status + ' ' + Math.round((Date.now() - t0) / 1000) + 's'; }, 1000);
-    rcNemotron().catch(rcTess);
+    R.img = URL.createObjectURL(file); R.lines = []; R.busy = true; R.status = t('Reading…'); render();
+    rcLoadTess().then(() => window.Tesseract.recognize(R.img, 'eng', { logger: (m) => {
+      if (m.status === 'recognizing text') { R.status = t('Reading…') + ' ' + Math.round(m.progress * 100) + '%'; const st = $('#rc-status'); if (st) st.textContent = R.status; }
+    } })).then((r) => rcRead(r.data.text)).catch(() => { R.busy = false; R.status = t('Could not read the photo.'); render(); });
   }
   function viewReceive() {
     const R = ui.rcv;
@@ -1101,7 +1059,7 @@
       const p = prod(l.pid);
       return `<tr class="${l.on ? '' : 'off'}"><td><input type="checkbox" data-in="rc-on" data-i="${i}" ${l.on ? 'checked' : ''} aria-label="${t('Include')}"></td>
         <td><b>${esc(l.desc)}</b><div class="small muted num">${[l.barcode, l.code].filter(Boolean).join(' · ')}</div></td>
-        <td><select class="input" data-in="rc-pid" data-i="${i}">${opts(l.pid)}</select>${l.pid ? `<span class="tag ${lv[l.level]}">${esc(t(l.why === 'Barcode' || l.why === 'Saved' || l.why === 'Manual' || l.why === 'AI' ? l.why : 'Name')) + (/%$/.test(l.why) ? ' ' + l.why : '')}</span>` : ''}</td>
+        <td><select class="input" data-in="rc-pid" data-i="${i}">${opts(l.pid)}</select>${l.pid ? `<span class="tag ${lv[l.level]}">${esc(t(l.why === 'Barcode' || l.why === 'Saved' || l.why === 'Manual' ? l.why : 'Name')) + (/%$/.test(l.why) ? ' ' + l.why : '')}</span>` : ''}</td>
         <td><input class="input num" style="width:80px" data-in="rcv-qty" data-i="${i}" data-k="rcq${i}" value="${l.qty}" inputmode="decimal"></td>
         <td class="r num">${after(l, p)}</td></tr>`;
     }).join('');
