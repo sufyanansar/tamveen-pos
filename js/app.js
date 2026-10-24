@@ -1127,11 +1127,11 @@
     return `<div class="page-h"><div><h1>${t('Receive stock')}</h1></div></div>
       <div class="rc-bar">
         <select class="input" data-in="rc-sup" aria-label="${t('Supplier')}">${db.suppliers.map((s) => `<option value="${s.id}" ${s.id === R.sup ? 'selected' : ''}>${esc(N(s))}</option>`).join('')}</select>
-        <label class="btn primary">${I.camera}${t('Photo')}<input type="file" accept="image/*" id="rc-file" hidden></label>
         <button class="btn" data-a="rc-sample">${t('Sample')}</button>
       </div>
       <div class="rc">
-        <div class="rc-doc">${R.img ? `<img src="${R.img}" alt="">` : R.sample ? `<pre>${esc(RC_SAMPLE)}</pre>` : ''}<div class="small muted" id="rc-status">${esc(R.status || '')}</div></div>
+        <div class="rc-doc">${R.img ? `<img src="${R.img}" alt="">` : R.sample ? `<pre>${esc(RC_SAMPLE)}</pre>` : ''}
+          <label class="${R.img || R.sample ? 'btn ghost' : 'rc-up'}">${I.camera}${t('Upload')}<input type="file" accept="image/*" id="rc-file" hidden></label><div class="small muted" id="rc-status">${esc(R.status || '')}</div></div>
         <div>${R.lines.length ? `<div class="tblwrap"><table class="tbl rc-tbl"><thead><tr><th></th><th>${t('Scanned')}</th><th>${t('Product')}</th><th>${t('Qty')}</th><th class="r">${t('Stock')}</th></tr></thead><tbody>${rows}</tbody></table></div>
           <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn primary" data-a="rc-add" ${blocked || !units ? 'disabled' : ''}>${t('Add to stock')}</button></div>` : ''}</div>
       </div>`;
