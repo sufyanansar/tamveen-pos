@@ -186,7 +186,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
 .amountdue .v{font-size:52px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
 .amountdue .v small{font-size:20px;margin-inline-start:6px;font-weight:600}
 .methods{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:20px 0}
-.method{border:1px solid var(--line);border-radius:18px;background:#fff;padding:16px;text-align:start;min-height:110px;display:flex;flex-direction:column;gap:6px}
+.method{border:1px solid var(--line);border-radius:18px;background:#fff;padding:16px;text-align:start;min-height:72px;display:flex;flex-direction:column;gap:6px}
 .method b{font-size:17px;font-weight:600}
 .method small{font-size:12.5px;color:var(--muted)}
 .method.on{border:2px solid var(--green);background:var(--soft);padding:15px}
