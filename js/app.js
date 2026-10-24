@@ -22,7 +22,7 @@
     cart: loadCart(), cat: 'fav', q: '', modal: null, demoOpen: false, toasts: [],
     pay: null, form: null, lastInvoice: null, sel: null, nextQty: '1', invFilter: 'all', invQ: '', prodQ: '', prodCat: 'all',
     custTab: 'unpaid', payForm: null, ret: null, custQ: '', notifiedOffline: false,
-    rcv: { sup: 's1', lines: [], img: null, sample: false, busy: false, status: '' },
+    rcv: { mode: '', sup: 's1', lines: [], img: null, sample: false, busy: false, status: '' },
     demo: { server: true, internet: true, printer: true, terminal: true },
   };
 
@@ -83,6 +83,7 @@
     warn: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" style="flex:none"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg>',
     lock: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
     eye: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#536B62" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+    edit: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/></svg>',
     camera: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
     flask: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M9 3h6M10 3v6L4 20h16l-6-11V3"/></svg>',
   };
@@ -1114,19 +1115,36 @@
     const R = ui.rcv;
     const opts = (sel) => `<option value="">—</option>` + db.products.map((p) => `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(N(p))}</option>`).join('');
     const lv = { exact: '', likely: '', check: 'amber', none: 'red' };
+    const after = (l, p) => p ? `${qtyFmt(p.stock, p.weighted)} → <b>${qtyFmt(r2(p.stock + (l.on ? Number(l.qty) || 0 : 0)), p.weighted)}</b>` : '—';
     const rows = R.lines.map((l, i) => {
       const p = prod(l.pid);
       return `<tr class="${l.on ? '' : 'off'}"><td><input type="checkbox" data-in="rc-on" data-i="${i}" ${l.on ? 'checked' : ''} aria-label="${t('Include')}"></td>
         <td><b>${esc(l.desc)}</b><div class="small muted num">${[l.barcode, l.code].filter(Boolean).join(' · ')}</div></td>
         <td><select class="input" data-in="rc-pid" data-i="${i}">${opts(l.pid)}</select>${l.pid ? `<span class="tag ${lv[l.level]}">${esc(t(l.why === 'Barcode' || l.why === 'Saved' || l.why === 'Manual' ? l.why : 'Name')) + (/%$/.test(l.why) ? ' ' + l.why : '')}</span>` : ''}</td>
-        <td><input class="input num" style="width:80px" data-in="rc-qty" data-i="${i}" data-k="rcq${i}" value="${l.qty}" inputmode="decimal"></td>
-        <td class="r num">${p ? `${qtyFmt(p.stock, p.weighted)} → <b>${qtyFmt(r2(p.stock + (l.on ? Number(l.qty) || 0 : 0)), p.weighted)}</b>` : '—'}</td></tr>`;
+        <td><input class="input num" style="width:80px" data-in="rcv-qty" data-i="${i}" data-k="rcq${i}" value="${l.qty}" inputmode="decimal"></td>
+        <td class="r num">${after(l, p)}</td></tr>`;
     }).join('');
-    const blocked = R.lines.some((l) => l.on && !l.pid);
+    const blocked = R.mode === 'upload' && R.lines.some((l) => l.on && !l.pid);
     const units = R.lines.filter((l) => l.on && l.pid).length;
-    return `<div class="page-h"><div><h1>${t('Receive stock')}</h1></div></div>
+    const head = `<div class="page-h"><div><h1>${t('Receive stock')}</h1></div>${R.mode ? `<button class="btn sm ghost" data-a="rc-mode" data-m="">${t('Back')}</button>` : ''}</div>`;
+    if (!R.mode) {
+      return head + `<div class="rc-pick">
+        <button class="rc-up" data-a="rc-mode" data-m="upload">${I.camera}${t('Upload')}</button>
+        <button class="rc-up" data-a="rc-mode" data-m="manual">${I.edit}${t('Enter manually')}</button></div>`;
+    }
+    const sup = `<select class="input" data-in="rc-sup" aria-label="${t('Supplier')}">${db.suppliers.map((s) => `<option value="${s.id}" ${s.id === R.sup ? 'selected' : ''}>${esc(N(s))}</option>`).join('')}</select>`;
+    if (R.mode === 'manual') {
+      const mrows = R.lines.map((l, i) => `<tr><td><select class="input" data-in="rc-pid" data-i="${i}" aria-label="${t('Product')}">${opts(l.pid)}</select></td>
+        <td><input class="input num" style="width:80px" data-in="rcv-qty" data-i="${i}" data-k="rcq${i}" value="${l.qty}" inputmode="decimal" aria-label="${t('Qty')}"></td>
+        <td class="r num">${after(l, prod(l.pid))}</td>
+        <td class="r"><button class="btn sm ghost" data-a="rc-del" data-i="${i}" aria-label="${t('Remove')}">×</button></td></tr>`).join('');
+      return head + `<div class="rc-bar">${sup}</div>
+        <div class="tblwrap"><table class="tbl rc-tbl rc-man"><thead><tr><th>${t('Product')}</th><th>${t('Qty')}</th><th class="r">${t('Stock')}</th><th></th></tr></thead><tbody>${mrows}</tbody></table></div>
+        <div class="row" style="justify-content:space-between;margin-top:14px"><button class="btn" data-a="rc-line">${t('Add item')}</button><button class="btn primary" data-a="rc-add" ${units ? '' : 'disabled'}>${t('Add to stock')}</button></div>`;
+    }
+    return head + `
       <div class="rc-bar">
-        <select class="input" data-in="rc-sup" aria-label="${t('Supplier')}">${db.suppliers.map((s) => `<option value="${s.id}" ${s.id === R.sup ? 'selected' : ''}>${esc(N(s))}</option>`).join('')}</select>
+        ${sup}
         <button class="btn" data-a="rc-sample">${t('Sample')}</button>
       </div>
       <div class="rc">
@@ -1549,17 +1567,23 @@
     'new-sale': () => go('checkout'),
     // orders
     'translate-name': () => translateName(true),
+    'rc-mode': (el) => {
+      const R = ui.rcv; if (R.img) URL.revokeObjectURL(R.img);
+      Object.assign(R, { mode: el.dataset.m, lines: el.dataset.m === 'manual' ? [{ pid: '', qty: '1', on: true, manual: true }] : [], img: null, sample: false, busy: false, status: '' }); render();
+    },
+    'rc-line': () => { ui.rcv.lines.push({ pid: '', qty: '1', on: true, manual: true }); render(); },
+    'rc-del': (el) => { ui.rcv.lines.splice(Number(el.dataset.i), 1); render(); },
     'rc-sample': () => { const R = ui.rcv; if (R.img) URL.revokeObjectURL(R.img); R.img = null; R.sample = true; rcRead(RC_SAMPLE); },
     'rc-add': () => {
       const R = ui.rcv; db.rcMemory = db.rcMemory || Object.assign({}, RC_MEMORY); let n = 0;
       R.lines.forEach((l) => {
         if (!l.on || !l.pid) return;
         const p = prod(l.pid), q = Number(l.qty) || 0; p.stock = r2(p.stock + q); n++;
-        if (!l.barcode || !p.packs.some((k) => k.barcode === l.barcode)) db.rcMemory[R.sup + '|' + (l.code || rcNorm(l.desc))] = p.id;
+        if (!l.manual && (!l.barcode || !p.packs.some((k) => k.barcode === l.barcode))) db.rcMemory[R.sup + '|' + (l.code || rcNorm(l.desc))] = p.id;
       });
       audit(`Received delivery from ${(db.suppliers.find((x) => x.id === R.sup) || {}).en} · ${n} lines`);
       if (R.img) URL.revokeObjectURL(R.img);
-      ui.rcv = { sup: R.sup, lines: [], img: null, sample: false, busy: false, status: '' };
+      ui.rcv = { mode: '', sup: R.sup, lines: [], img: null, sample: false, busy: false, status: '' };
       save(); toast(t('{n} products updated', { n })); go('inventory');
     },
     'order-view': (el) => openModal({ kind: 'order', id: el.dataset.id }),
@@ -1622,7 +1646,7 @@
     'rc-sup': (el) => { ui.rcv.sup = el.value; render(); },
     'rc-on': (el) => { ui.rcv.lines[el.dataset.i].on = el.checked; render(); },
     'rc-pid': (el) => { const l = ui.rcv.lines[el.dataset.i]; l.pid = el.value; l.level = el.value ? 'exact' : 'none'; l.why = 'Manual'; render(); },
-    'rc-qty': (el) => { ui.rcv.lines[el.dataset.i].qty = el.value; render(); },
+    'rcv-qty': (el) => { ui.rcv.lines[el.dataset.i].qty = el.value; render(); },
     nextqty: (el) => { ui.nextQty = el.value.replace(/[^\d.]/g, ''); },
     'browse-q': (el) => { ui.modal.q = el.value; rerenderModalKeepFocus(); },
     qty: (el) => { const l = ui.cart.lines[el.dataset.i]; const v = Number(el.value); if (el.value !== '' && v > 0 && !el.value.endsWith('.')) { l.qty = r2(v); save(); render(); } },
