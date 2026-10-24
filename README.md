@@ -23,6 +23,7 @@ A clickable proof of concept of the Tamveen (تموين) grocery point of sale, 
 | Returns | Credit note linked to the original invoice, partial quantities, restock, refund to cash / card / account balance |
 | Customers & credit | Balances, credit limit and terms, oldest-unpaid ageing, record payment with oldest-first or manual allocation, statement |
 | Products | Add / edit product, Arabic and English names, VAT category (locked for cashiers), packs and barcodes with duplicate detection, VAT-inclusive price breakdown, margin preview |
+| Receive stock | Photo of a delivery note or invoice read in the browser (Tesseract.js), lines matched by barcode, saved supplier code or name, reviewed, then added to stock; confirmed matches are remembered per supplier |
 | Also | Orders (WhatsApp / phone / app) loaded into checkout, inventory with receiving by pack, suppliers, daily reports, audit history, close shift with cash count |
 
 Everything is in English and Arabic (right-to-left), switchable from the top bar.
