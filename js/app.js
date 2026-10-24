@@ -1044,19 +1044,26 @@
     if (window.Tesseract) return Promise.resolve();
     return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
   }
+  function rcPct(n) {
+    const R = ui.rcv; R.pct = Math.max(R.pct || 0, Math.min(99, Math.floor(n)));
+    R.status = t('Scanning document…') + ' ' + R.pct + '%'; const st = $('#rc-status'); if (st) st.textContent = R.status;
+  }
   function rcTess() {
-    const R = ui.rcv; clearInterval(R.timer);
+    const R = ui.rcv; clearInterval(R.timer); const from = R.pct || 0;
     rcLoadTess().then(() => window.Tesseract.recognize(R.img, 'eng', { logger: (m) => {
-      if (m.status === 'recognizing text') { R.status = t('Scanning document…') + ' ' + Math.round(m.progress * 100) + '%'; const st = $('#rc-status'); if (st) st.textContent = R.status; }
+      if (m.status === 'recognizing text') rcPct(from + (100 - from) * m.progress);
     } })).then((r) => rcRead(r.data.text, 'Tesseract')).catch(() => { R.busy = false; R.status = t('Could not read the photo.'); render(); });
   }
   // DeepSeek-OCR-2 on the OCR server set in Settings (bench/deepseek_ocr2_colab.ipynb).
+  // Progress runs smoothly to 60% over ~15s, then creeps toward 95% until the server answers.
   function rcServer(file) {
     const R = ui.rcv, base = String(db.settings.ocrUrl || '').trim().replace(/\/+$/, '');
     if (!base) return Promise.reject('none');
     const t0 = Date.now();
-    R.status = t('Scanning document…'); render();
-    R.timer = setInterval(() => { const st = $('#rc-status'); if (st && R.busy) st.textContent = R.status + ' ' + Math.round((Date.now() - t0) / 1000) + 's'; }, 1000);
+    R.timer = setInterval(() => {
+      const s = (Date.now() - t0) / 1000;
+      rcPct(s <= 15 ? s * 4 : 95 - 35 * Math.exp(-(s - 15) / 60));
+    }, 250);
     const fd = new FormData(); fd.append('file', file);
     return fetch(base + '/ocr', { method: 'POST', body: fd, headers: { 'ngrok-skip-browser-warning': '1' } })
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
@@ -1064,7 +1071,7 @@
   }
   function rcPhoto(file) {
     const R = ui.rcv; if (R.img) URL.revokeObjectURL(R.img);
-    R.img = URL.createObjectURL(file); R.lines = []; R.busy = true; R.status = t('Scanning document…'); clearInterval(R.timer);
+    R.img = URL.createObjectURL(file); R.lines = []; R.busy = true; R.pct = 0; R.status = t('Scanning document…') + ' 0%'; clearInterval(R.timer); render();
     rcServer(file).catch(rcTess);
   }
   function viewReceive() {
@@ -1102,7 +1109,7 @@
       ${R.lines.length ? `<div class="rc-bar">${sup}</div>` : ''}
       <div class="rc">
         <div class="rc-doc">${R.img ? `<div class="rc-img"><img src="${R.img}" alt=""></div>` : R.sample ? `<pre>${esc(RC_SAMPLE)}</pre>` : ''}
-          <label class="${R.img || R.sample ? 'btn ghost' : 'rc-up'}">${I.camera}${t('Upload')}<input type="file" accept="image/*" id="rc-file" hidden></label><div class="small rc-st">${R.busy ? '<span class="spin" aria-hidden="true"></span>' : ''}<span id="rc-status">${esc(R.status || '')}</span></div></div>
+          <label class="${R.img || R.sample ? 'btn ghost' : 'rc-up'}">${I.camera}${t('Upload')}<input type="file" accept="image/*" id="rc-file" hidden></label><div class="small rc-st" id="rc-status">${esc(R.status || '')}</div></div>
         <div>${R.lines.length ? `<div class="tblwrap"><table class="tbl rc-tbl"><thead><tr><th></th><th>${t('Scanned')}</th><th>${t('Product')}</th><th>${t('Qty')}</th><th class="r">${t('Stock')}</th></tr></thead><tbody>${rows}</tbody></table></div>
           <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn primary" data-a="rc-add" ${blocked || !units ? 'disabled' : ''}>${t('Add to stock')}</button></div>` : ''}</div>
       </div>`;
