@@ -1022,9 +1022,10 @@
     return { pid: '', mult: 1, level: 'none', why: '' };
   }
   const rcOpt = (p) => [p.en, p.ar].concat(p.packs.map((k) => k.barcode).filter(Boolean)).join(' · ');
-  function rcRead(text) {
+  const rcLines = (text) => text.split(/\r?\n/).map(rcParse).filter(Boolean);
+  function rcRead(text, lines) {
     const R = ui.rcv;
-    R.lines = text.split(/\r?\n/).map(rcParse).filter(Boolean).map((l) => {
+    R.lines = (lines || rcLines(text)).map((l) => {
       const m = rcMatch(l, R.sup);
       return Object.assign(l, m, { on: true, qty: r2(l.qty * m.mult) });
     });
@@ -1057,11 +1058,30 @@
       const s = (Date.now() - t0) / 1000;
       rcPct(s <= 15 ? s * 4 : 95 - 35 * Math.exp(-(s - 15) / 60));
     }, 250);
-    const fd = new FormData(); fd.append('file', file);
-    return fetch(base + '/ocr', { method: 'POST', body: fd, headers: { 'ngrok-skip-browser-warning': '1' } })
-      .then((r) => (r.ok ? r.json() : r.text().then((x) => Promise.reject(new Error('HTTP ' + r.status + ' ' + x.slice(0, 120))))))
-      .then((j) => rcRead(String(j.text || '').replace(/^\s*[-:| ]{3,}\s*$/gm, '').replace(/[#*`]+/g, ' ')))
+    const ask = (blob) => {
+      const fd = new FormData(); fd.append('file', blob, 'photo.jpg');
+      return fetch(base + '/ocr', { method: 'POST', body: fd, headers: { 'ngrok-skip-browser-warning': '1' } })
+        .then((r) => (r.ok ? r.json() : r.text().then((x) => Promise.reject(new Error('HTTP ' + r.status + ' ' + x.slice(0, 120))))))
+        .then((j) => String(j.text || '').replace(/^\s*[-:| ]{3,}\s*$/gm, '').replace(/[#*`]+/g, ' '));
+    };
+    // The model only reads upright text: if nothing comes back, try the photo turned sideways both ways.
+    const tryTurn = (turns) => rcImage(file, turns[0]).then(ask).then((text) => {
+      const lines = rcLines(text);
+      if (lines.length || turns.length === 1) return rcRead(text, lines);
+      return tryTurn(turns.slice(1));
+    });
+    return tryTurn([0, 90, 270])
       .catch((e) => { R.err = (e && e.message) || String(e); console.error('OCR server', base, e); throw e; });
+  }
+  // Upright (EXIF applied), at most 2000px, turned by deg, as a JPEG blob.
+  function rcImage(file, deg) {
+    return createImageBitmap(file, { imageOrientation: 'from-image' }).then((im) => {
+      const k = Math.min(1, 2000 / Math.max(im.width, im.height)), w = Math.round(im.width * k), h = Math.round(im.height * k);
+      const side = deg % 180 !== 0, c = document.createElement('canvas');
+      c.width = side ? h : w; c.height = side ? w : h;
+      const g = c.getContext('2d'); g.translate(c.width / 2, c.height / 2); g.rotate(deg * Math.PI / 180); g.drawImage(im, -w / 2, -h / 2, w, h);
+      return new Promise((res) => c.toBlob(res, 'image/jpeg', 0.9));
+    });
   }
   function rcPhoto(file) {
     const R = ui.rcv; if (R.img) URL.revokeObjectURL(R.img);
