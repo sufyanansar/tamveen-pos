@@ -9,11 +9,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/app.css?v=31">
+<link rel="stylesheet" href="css/app.css?v=33">
 <script>
 // Reload onto the newest build when a deploy lands, so cached pages never linger.
 (function () {
-  var V = '31';
+  var V = '33';
   function check() {
     fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
       if (!j || String(j.v) === V) return;
@@ -31,10 +31,10 @@
 <div id="demo-root"></div>
 <div id="print-area"></div>
 <noscript><p style="padding:24px">Tamveen POS needs JavaScript.</p></noscript>
-<script src="js/qrcode.js?v=31"></script>
-<script src="js/data.js?v=31"></script>
-<script src="js/i18n-ar.js?v=31"></script>
-<script src="js/camera.js?v=31"></script>
-<script src="js/app.js?v=31"></script>
+<script src="js/qrcode.js?v=33"></script>
+<script src="js/data.js?v=33"></script>
+<script src="js/i18n-ar.js?v=33"></script>
+<script src="js/camera.js?v=33"></script>
+<script src="js/app.js?v=33"></script>
 </body>
 </html>

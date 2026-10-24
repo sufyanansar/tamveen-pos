@@ -973,7 +973,7 @@
   }
 
   // ---------------------------------------------------------------- views: receive stock from a delivery document
-  // Photo → in-browser OCR (Tesseract.js) → lines matched by barcode, saved supplier code, then name → review → add to stock.
+  // Photo → DeepSeek-OCR-2 server if set, else in-browser OCR (Tesseract.js) → lines matched by barcode, saved supplier code, then name → review → add to stock.
   const RC_SAMPLE = 'ALMARAI CO.\nDELIVERY NOTE DN-55821 24/10/2026\nCode Item Qty Price Total\n6281000001028 Fresh Milk 1L Carton 4 CTN 62.40 249.60\nAL-220 Laban 1L 24 4.40 105.60\nWHT CHEESE 500G x1O 14.30 143.00\n6281000007013 Orange Juice 1.4L 12 8.20 98.40\nYoghurt Cup 170g 24 1.50 36.00\nSubtotal 632.60 VAT 15% 94.89\nTotal SAR 727.49';
   const RC_MEMORY = { 's1|AL-220': 'p9' };
   const RC_SKIP = /\b(sub ?total|total|vat|tax|date|invoice|purchase order|delivery note|received|thank|items|tel|phone|code item|barcode description)\b/i;
@@ -1031,24 +1031,41 @@
     if (bs >= 0.5) return { pid: best.id, mult: 1, level: 'check', why: pct };
     return { pid: '', mult: 1, level: 'none', why: '' };
   }
-  function rcRead(text) {
+  function rcRead(text, engine, secs) {
     const R = ui.rcv;
     R.lines = text.split(/\r?\n/).map(rcParse).filter(Boolean).map((l) => {
       const m = rcMatch(l, R.sup);
       return Object.assign(l, m, { on: !!m.pid, qty: r2(l.qty * m.mult) });
     });
-    R.busy = false; R.status = t('{n} lines', { n: R.lines.length }); render();
+    clearInterval(R.timer);
+    R.busy = false; R.status = t('{n} lines', { n: R.lines.length }) + ' · ' + engine + (secs ? ' · ' + secs + 's' : ''); render();
   }
   function rcLoadTess() {
     if (window.Tesseract) return Promise.resolve();
     return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
   }
+  function rcTess() {
+    const R = ui.rcv; clearInterval(R.timer);
+    rcLoadTess().then(() => window.Tesseract.recognize(R.img, 'eng', { logger: (m) => {
+      if (m.status === 'recognizing text') { R.status = t('Reading…') + ' Tesseract ' + Math.round(m.progress * 100) + '%'; const st = $('#rc-status'); if (st) st.textContent = R.status; }
+    } })).then((r) => rcRead(r.data.text, 'Tesseract')).catch(() => { R.busy = false; R.status = t('Could not read the photo.'); render(); });
+  }
+  // DeepSeek-OCR-2 on the OCR server set in Settings (bench/deepseek_ocr2_colab.ipynb).
+  function rcServer(file) {
+    const R = ui.rcv, base = String(db.settings.ocrUrl || '').trim().replace(/\/+$/, '');
+    if (!base) return Promise.reject('none');
+    const t0 = Date.now();
+    R.status = t('Reading…') + ' DeepSeek-OCR-2'; render();
+    R.timer = setInterval(() => { const st = $('#rc-status'); if (st && R.busy) st.textContent = R.status + ' ' + Math.round((Date.now() - t0) / 1000) + 's'; }, 1000);
+    const fd = new FormData(); fd.append('file', file);
+    return fetch(base + '/ocr', { method: 'POST', body: fd, headers: { 'ngrok-skip-browser-warning': '1' } })
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((j) => rcRead(String(j.text || ''), 'DeepSeek-OCR-2', Math.round((Date.now() - t0) / 1000)));
+  }
   function rcPhoto(file) {
     const R = ui.rcv; if (R.img) URL.revokeObjectURL(R.img);
-    R.img = URL.createObjectURL(file); R.lines = []; R.busy = true; R.status = t('Reading…'); render();
-    rcLoadTess().then(() => window.Tesseract.recognize(R.img, 'eng', { logger: (m) => {
-      if (m.status === 'recognizing text') { R.status = t('Reading…') + ' ' + Math.round(m.progress * 100) + '%'; const st = $('#rc-status'); if (st) st.textContent = R.status; }
-    } })).then((r) => rcRead(r.data.text)).catch(() => { R.busy = false; R.status = t('Could not read the photo.'); render(); });
+    R.img = URL.createObjectURL(file); R.lines = []; R.busy = true; R.status = t('Reading…'); clearInterval(R.timer);
+    rcServer(file).catch(rcTess);
   }
   function viewReceive() {
     const R = ui.rcv;
@@ -1151,6 +1168,7 @@
         <div style="display:flex;flex-direction:column;gap:16px">
           <div class="card"><h2>${t('Language')}</h2><div class="row"><button class="pill outline ${!isAr() ? 'on' : ''}" data-a="set-lang" data-l="en">English</button><button class="pill outline ${isAr() ? 'on' : ''}" data-a="set-lang" data-l="ar">العربية</button></div></div>
           <div class="card"><h2>${t('Employees')}</h2><div class="list" style="max-height:none">${db.users.map((u) => `<div class="between" style="padding:8px 0;border-bottom:1px solid var(--line)"><span><b>${esc(isAr() ? u.nameAr : u.name)}</b> · ${t(cap(u.role))}</span><span class="small muted">PIN ${u.pin}</span></div>`).join('')}</div></div>
+          <div class="card"><h2>${t('Scanning')}</h2><label class="field"><span>${t('OCR server')}</span><input class="input" dir="ltr" data-in="setting" data-f="ocrUrl" data-k="socrUrl" value="${esc(s.ocrUrl)}" inputmode="url"></label></div>
           <div class="card"><h2>${t('Demo data')}</h2><button class="btn danger" data-a="reset">${t('Reset demo data')}</button></div>
         </div>
       </div>`;

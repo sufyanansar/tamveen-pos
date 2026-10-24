@@ -16,6 +16,8 @@ window.I18N_AR = {
   '{n} lines': '{n} أسطر',
   'Reading…': 'جارٍ القراءة…',
   'Could not read the photo.': 'تعذّرت قراءة الصورة.',
+  'Scanning': 'المسح',
+  'OCR server': 'خادم قراءة المستندات',
   '{n} products updated': 'تم تحديث {n} منتجات',
   'Record': 'تسجيل',
   'Translate': 'ترجمة',
