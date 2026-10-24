@@ -28,6 +28,12 @@
 
   // ---------------------------------------------------------------- helpers
   const $ = (s, r = document) => r.querySelector(s);
+  // Funnel button over a native select: one compact control instead of a row of filter chips.
+  const filterBtn = (key, opts, val) => {
+    const cur = opts.find(([k]) => k === val);
+    return `<label class="filter-btn ${val !== opts[0][0] ? 'on' : ''}" title="${t('Filter')}">${I.funnel}${val !== opts[0][0] && cur ? `<span>${esc(cur[1])}</span>` : ''}
+      <select data-in="${key}" aria-label="${t('Filter')}">${opts.map(([k, l]) => `<option value="${k}" ${k === val ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
+  };
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const r2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
   const money = (n) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -63,6 +69,7 @@
 
   // ---------------------------------------------------------------- icons
   const I = {
+    funnel: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg>',
     menu: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
     user: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
     barcode: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 5v14M6 5v14M10 5v14M13 5v14M17 5v14M21 5v14M8 5v14M19 5v14"/></svg>',
@@ -162,7 +169,7 @@
     const r = route()[0];
     const ordN = db.orders.filter((o) => o.status !== 'completed').length;
     const cashierNav = [
-      ['checkout', 'Checkout'], ['orders', 'Orders', ordN, true], ['invoices', 'Invoices'], ['returns', 'Returns'], ['customers', 'Customers'], ['products', 'Products'],
+      ['checkout', 'Checkout'], ['orders', 'Orders', ordN, true], ['invoices', 'Invoices'], ['returns', 'Returns'], ['customers', 'Customers'], ['products', 'Products'], ['receive', 'Receive stock'],
     ];
     const mgrNav = [
       ['checkout', 'Checkout'], ['orders', 'Orders', ordN, true], ['products', 'Products'], ['inventory', 'Inventory'], ['receive', 'Receive stock'], ['customers', 'Customers & Credit'], ['suppliers', 'Suppliers'], ['invoices', 'Invoices'], ['returns', 'Returns'], ['reports', 'Reports'], ['settings', 'Settings'],
@@ -393,11 +400,10 @@
   }
 
   function browseBody(m) {
-    const cats = db.categories.map((c) => `<button class="pill ${m.cat === c.id && !m.q ? 'on' : ''}" data-a="browse-cat" data-id="${c.id}">${esc(N(c))}</button>`).join('');
     const list = filteredProducts(m.q, m.cat);
     return `<div class="between"><h3>${t('Find product')}</h3><button class="btn sm" data-a="close">${t('Done')}</button></div>
-      <div class="search" style="height:48px">${I.search}<input data-in="browse-q" data-k="browseq" value="${esc(m.q || '')}" placeholder="${t('Name (عربي / English), SKU or barcode')}" autofocus></div>
-      <div class="cats">${cats}</div>
+      <div class="filter-row"><div class="search" style="height:48px">${I.search}<input data-in="browse-q" data-k="browseq" value="${esc(m.q || '')}" placeholder="${t('Name, SKU or barcode')}" autofocus></div>
+        ${filterBtn('browse-cat', db.categories.map((c) => [c.id, N(c)]), m.cat)}</div>
       <div class="pgrid">${list.map(productCard).join('') || `<div class="empty">${t('No products match.')}</div>`}</div>
 `;
   }
@@ -698,10 +704,9 @@
       if (q) { const cu = cust(i.customerId); return i.id.toLowerCase().includes(q) || (cu && (cu.en.toLowerCase().includes(q) || cu.ar.includes(q))); }
       return true;
     });
-    const tabs = [['all', 'All'], ['today', 'Today'], ['unpaid', 'Unpaid'], ['cn', 'Credit notes']].map(([k, l]) => `<button class="pill ${ui.invFilter === k ? 'on' : ''}" data-a="inv-filter" data-f="${k}">${t(l)}</button>`).join('');
     return `<div class="page-h"><div><h1>${t('Invoices')}</h1></div></div>
-      <div class="between" style="margin-bottom:14px;flex-wrap:wrap"><div class="tabs" style="margin:0">${tabs}</div>
-        <div class="search" style="height:44px;width:320px;max-width:100%">${I.search}<input data-in="invq" data-k="invq" value="${esc(ui.invQ)}" placeholder="${t('Invoice no. or customer')}"></div></div>
+      <div class="filter-row"><div class="search" style="height:44px">${I.search}<input data-in="invq" data-k="invq" value="${esc(ui.invQ)}" placeholder="${t('Invoice no. or customer')}"></div>
+        ${filterBtn('inv-filter', [['all', 'All'], ['today', 'Today'], ['unpaid', 'Unpaid'], ['cn', 'Credit notes']].map(([k, l]) => [k, t(l)]), ui.invFilter)}</div>
       <div class="tblwrap"><table class="tbl"><thead><tr><th>${t('Invoice')}</th><th>${t('Date')}</th><th>${t('Customer')}</th><th>${t('Payment')}</th><th class="r">${t('Total')}</th><th class="r">${t('Outstanding')}</th><th>ZATCA</th></tr></thead>
       <tbody>${list.map((i) => { const cu = cust(i.customerId); return `<tr class="click" data-a="open-inv" data-id="${i.id}"><td><a href="#/invoice/${i.id}">${i.id}</a></td><td class="num">${fmtDate(i.date)} ${fmtTime(i.date)}</td><td>${cu ? esc(N(cu)) : `<span class="muted">${t('Walk-in')}</span>`}</td><td>${invStatusTag(i)}</td><td class="r num">${i.type === 'credit_note' ? '−' : ''}${money(i.total)}</td><td class="r num">${i.outstanding > 0 ? money(i.outstanding) : '—'}</td><td>${zTag(i.zatca)}</td></tr>`; }).join('') || `<tr><td colspan="7" class="empty">${t('No invoices match.')}</td></tr>`}</tbody></table></div>`;
   }
@@ -882,10 +887,10 @@
   function viewProducts() {
     const q = ui.prodQ.trim().toLowerCase();
     const list = db.products.filter((p) => (ui.prodCat === 'all' || p.cat === ui.prodCat) && (!q || p.en.toLowerCase().includes(q) || p.ar.includes(q) || p.sku.toLowerCase().includes(q) || p.packs.some((k) => k.barcode.includes(q))));
-    return `<div class="page-h"><div><h1>${t('Products')}</h1><div class="sub">${t('{n} products', { n: db.products.length })}</div></div>
+    return `<div class="page-h"><div><h1>${t('Products')}</h1></div>
       <div class="row"><a class="btn ghost" href="#/barcodes" style="text-decoration:none">${t('Test barcodes')}</a><a class="btn primary" href="#/product/new" style="text-decoration:none">${t('Add product')}</a></div></div>
-      <div class="between" style="margin-bottom:14px;flex-wrap:wrap"><div class="tabs" style="margin:0"><button class="pill ${ui.prodCat === 'all' ? 'on' : ''}" data-a="prod-cat" data-id="all">${t('All')}</button>${db.categories.filter((c) => c.id !== 'fav').map((c) => `<button class="pill ${ui.prodCat === c.id ? 'on' : ''}" data-a="prod-cat" data-id="${c.id}">${esc(N(c))}</button>`).join('')}</div>
-        <div class="search" style="height:44px;width:300px;max-width:100%">${I.search}<input data-in="prodq" data-k="prodq" value="${esc(ui.prodQ)}" placeholder="${t('Name, SKU or barcode')}"></div></div>
+      <div class="filter-row"><div class="search" style="height:44px">${I.search}<input data-in="prodq" data-k="prodq" value="${esc(ui.prodQ)}" placeholder="${t('Name, SKU or barcode')}"></div>
+        ${filterBtn('prod-cat', [['all', t('All')], ...db.categories.filter((c) => c.id !== 'fav').map((c) => [c.id, N(c)])], ui.prodCat)}</div>
       <div class="tblwrap"><table class="tbl"><thead><tr><th>${t('Product')}</th><th>SKU</th><th>${t('Category')}</th><th>${t('VAT')}</th><th class="r">${t('Price')}</th><th class="r">${t('Stock')}</th><th>${t('Status')}</th></tr></thead>
       <tbody>${list.map((p) => `<tr class="click" data-a="open-prod" data-id="${p.id}"><td><b>${esc(N(p))}</b><div class="small muted">${esc(N2(p))}</div></td><td class="small">${esc(p.sku)}</td><td>${esc(N(cat(p.cat)))}</td><td>${t(vatLabel(p.vat))}</td><td class="r num">${money(p.price)}${p.weighted ? ' /kg' : ''}</td><td class="r num">${qtyFmt(p.stock, p.weighted)}</td><td>${!p.active ? `<span class="tag outline">${t('Draft')}</span>` : p.stock <= 0 ? `<span class="tag red">${t('Out of stock')}</span>` : p.stock <= p.reorder ? `<span class="tag amber">${t('Reorder')}</span>` : `<span class="tag">${t('Active')}</span>`}</td></tr>`).join('')}</tbody></table></div>`;
   }
@@ -1611,6 +1616,9 @@
   };
 
   const inputs = {
+    'prod-cat': (el) => { ui.prodCat = el.value; render(); },
+    'inv-filter': (el) => { ui.invFilter = el.value; render(); },
+    'browse-cat': (el) => { ui.modal.cat = el.value; ui.modal.q = ''; renderModal(); },
     'rc-sup': (el) => { ui.rcv.sup = el.value; render(); },
     'rc-on': (el) => { ui.rcv.lines[el.dataset.i].on = el.checked; render(); },
     'rc-pid': (el) => { const l = ui.rcv.lines[el.dataset.i]; l.pid = el.value; l.level = el.value ? 'exact' : 'none'; l.why = 'Manual'; render(); },
