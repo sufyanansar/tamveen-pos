@@ -973,7 +973,7 @@
   }
 
   // ---------------------------------------------------------------- views: receive stock from a delivery document
-  // Photo → DeepSeek-OCR-2 server if set, else in-browser OCR (Tesseract.js) → lines matched by barcode, saved supplier code, then name → review → add to stock.
+  // Photo → DeepSeek-OCR-2 server if set, else in-browser OCR (Tesseract.js) → lines matched by barcode or saved supplier code, the rest searched or removed → review → add to stock.
   const RC_SAMPLE = 'ALMARAI CO.\nDELIVERY NOTE DN-55821 24/10/2026\nCode Item Qty Price Total\n6281000001028 Fresh Milk 1L Carton 4 CTN 62.40 249.60\nAL-220 Laban 1L 24 4.40 105.60\nWHT CHEESE 500G x1O 14.30 143.00\n6281000007013 Orange Juice 1.4L 12 8.20 98.40\nYoghurt Cup 170g 24 1.50 36.00\nSubtotal 632.60 VAT 15% 94.89\nTotal SAR 727.49';
   const RC_MEMORY = { 's1|AL-220': 'p9' };
   const RC_SKIP = /\b(sub ?total|total|vat|tax|date|invoice|purchase order|delivery note|received|thank|items|tel|phone|code item|barcode description)\b|المجموع|الاجمالي|ضريبه|فاتوره|التاريخ|الصنف|الكميه|سند استلام|الرقم الضريبي/i; // Arabic as normalized by rcArNorm
@@ -1021,14 +1021,14 @@
     return { pid: '', mult: 1, level: 'none', why: '' };
   }
   const rcOpt = (p) => [N(p)].concat(p.packs.map((k) => k.barcode).filter(Boolean)).join(' · ');
-  function rcRead(text, engine, secs) {
+  function rcRead(text) {
     const R = ui.rcv;
     R.lines = text.split(/\r?\n/).map(rcParse).filter(Boolean).map((l) => {
       const m = rcMatch(l, R.sup);
       return Object.assign(l, m, { on: true, qty: r2(l.qty * m.mult) });
     });
     clearInterval(R.timer);
-    R.busy = false; R.status = t('{n} lines', { n: R.lines.length }) + ' · ' + engine + (secs ? ' · ' + secs + 's' : '') + (R.err ? ' · OCR server failed after ' + R.errSecs + 's: ' + R.err : ''); render();
+    R.busy = false; R.status = t('{n} lines', { n: R.lines.length }) + (R.err ? ' · ' + R.err : ''); render();
   }
   function rcLoadTess() {
     if (window.Tesseract) return Promise.resolve();
@@ -1042,7 +1042,7 @@
     const R = ui.rcv; clearInterval(R.timer); const from = R.pct || 0;
     rcLoadTess().then(() => window.Tesseract.recognize(R.img, 'eng', { logger: (m) => {
       if (m.status === 'recognizing text') rcPct(from + (100 - from) * m.progress);
-    } })).then((r) => rcRead(r.data.text, 'Tesseract')).catch(() => { R.busy = false; R.status = t('Could not read the photo.') + (R.err ? ' · OCR server: ' + R.err : ''); render(); });
+    } })).then((r) => rcRead(r.data.text)).catch(() => { R.busy = false; R.status = t('Could not read the photo.') + (R.err ? ' · OCR server: ' + R.err : ''); render(); });
   }
   // DeepSeek-OCR-2 on Modal (bench/modal_ocr.py) unless Settings names another server; old Colab tunnel addresses are stale.
   const RC_OCR_URL = 'https://sufyanansar2873--tamveen-ocr-ocr-web.us-east.modal.run';
@@ -1059,8 +1059,8 @@
     const fd = new FormData(); fd.append('file', file);
     return fetch(base + '/ocr', { method: 'POST', body: fd, headers: { 'ngrok-skip-browser-warning': '1' } })
       .then((r) => (r.ok ? r.json() : r.text().then((x) => Promise.reject(new Error('HTTP ' + r.status + ' ' + x.slice(0, 120))))))
-      .then((j) => rcRead(String(j.text || '').replace(/^\s*[-:| ]{3,}\s*$/gm, '').replace(/[#*`]+/g, ' '), 'DeepSeek-OCR-2', Math.round((Date.now() - t0) / 1000)))
-      .catch((e) => { R.err = (e && e.message) || String(e); R.errSecs = Math.round((Date.now() - t0) / 1000); console.error('OCR server', base, e); throw e; });
+      .then((j) => rcRead(String(j.text || '').replace(/^\s*[-:| ]{3,}\s*$/gm, '').replace(/[#*`]+/g, ' ')))
+      .catch((e) => { R.err = (e && e.message) || String(e); console.error('OCR server', base, e); throw e; });
   }
   function rcPhoto(file) {
     const R = ui.rcv; if (R.img) URL.revokeObjectURL(R.img);
