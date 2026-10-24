@@ -1101,8 +1101,8 @@
     return head + `
       ${R.lines.length ? `<div class="rc-bar">${sup}</div>` : ''}
       <div class="rc">
-        <div class="rc-doc">${R.img ? `<div class="rc-img ${R.busy ? 'scanning' : ''}"><img src="${R.img}" alt=""></div>` : R.sample ? `<pre>${esc(RC_SAMPLE)}</pre>` : ''}
-          <label class="${R.img || R.sample ? 'btn ghost' : 'rc-up'}">${I.camera}${t('Upload')}<input type="file" accept="image/*" id="rc-file" hidden></label><div class="small muted rc-st">${R.busy ? '<span class="spin" aria-hidden="true"></span>' : ''}<span id="rc-status">${esc(R.status || '')}</span></div></div>
+        <div class="rc-doc">${R.img ? `<div class="rc-img"><img src="${R.img}" alt=""></div>` : R.sample ? `<pre>${esc(RC_SAMPLE)}</pre>` : ''}
+          <label class="${R.img || R.sample ? 'btn ghost' : 'rc-up'}">${I.camera}${t('Upload')}<input type="file" accept="image/*" id="rc-file" hidden></label><div class="small rc-st">${R.busy ? '<span class="spin" aria-hidden="true"></span>' : ''}<span id="rc-status">${esc(R.status || '')}</span></div></div>
         <div>${R.lines.length ? `<div class="tblwrap"><table class="tbl rc-tbl"><thead><tr><th></th><th>${t('Scanned')}</th><th>${t('Product')}</th><th>${t('Qty')}</th><th class="r">${t('Stock')}</th></tr></thead><tbody>${rows}</tbody></table></div>
           <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn primary" data-a="rc-add" ${blocked || !units ? 'disabled' : ''}>${t('Add to stock')}</button></div>` : ''}</div>
       </div>`;

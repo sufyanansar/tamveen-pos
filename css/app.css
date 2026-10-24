@@ -555,13 +555,9 @@ button.rc-up{background:var(--white);font:inherit;font-weight:600;cursor:pointer
 .rc-doc img{max-width:100%;max-height:70vh;object-fit:contain;border:1px solid var(--line);border-radius:14px}
 .rc-img{position:relative;align-self:flex-start;max-width:100%;border-radius:14px;overflow:hidden}
 .rc-img img{display:block}
-.rc-img.scanning::before{content:"";position:absolute;inset:0;background:rgba(16,84,72,.08)}
-.rc-img.scanning::after{content:"";position:absolute;left:0;right:0;height:3px;background:var(--green-mid);box-shadow:0 0 14px 4px rgba(29,105,71,.45);animation:rc-scan 1.8s ease-in-out infinite alternate}
-@keyframes rc-scan{from{top:0}to{top:calc(100% - 3px)}}
-.rc-st{display:flex;align-items:center;gap:8px}
-.spin{width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--green-mid);border-radius:50%;animation:spin .8s linear infinite;flex:none}
+.rc-st{display:flex;align-items:center;gap:8px;color:var(--green)}
+.spin{width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;flex:none}
 @keyframes spin{to{transform:rotate(360deg)}}
-@media (prefers-reduced-motion:reduce){.rc-img.scanning::after{animation:none;top:50%}}
 .rc-doc pre{margin:0;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--soft);font-size:12px;white-space:pre-wrap;overflow:auto}
 .rc-tbl select{min-width:160px;height:38px}
 .rc-tbl .tag{margin-top:6px;display:inline-block}
