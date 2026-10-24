@@ -544,7 +544,9 @@ kbd{font-family:inherit;font-size:11px;font-weight:700;padding:2px 6px;border-ra
 /* ---------- receive stock (OCR) ---------- */
 .rc-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
 .rc-bar select{width:auto;min-width:200px}
-.rc-bar label.btn{cursor:pointer}
+.rc-doc label{cursor:pointer}
+.rc-up{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:220px;border:2px dashed var(--line);border-radius:14px;font-weight:600;color:var(--green)}
+.rc-up svg{width:32px;height:32px}
 .rc{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:18px;align-items:start}
 .rc-doc{display:flex;flex-direction:column;gap:8px}
 .rc-doc img{max-width:100%;max-height:70vh;object-fit:contain;border:1px solid var(--line);border-radius:14px}
