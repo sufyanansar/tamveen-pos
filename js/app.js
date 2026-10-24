@@ -1093,7 +1093,7 @@
     const rows = R.lines.map((l, i) => {
       const p = prod(l.pid);
       return `<tr class="${l.on ? '' : 'off'}"><td><input type="checkbox" data-in="rc-on" data-i="${i}" ${l.on ? 'checked' : ''} aria-label="${t('Include')}"></td>
-        <td><b>${esc(l.desc)}</b><div class="small muted num">${[l.barcode, l.code].filter(Boolean).join(' · ')}</div></td>
+        <td class="num">${esc([l.barcode, l.code].filter(Boolean).join(' · ') || '—')}</td>
         <td><select class="input" data-in="rc-pid" data-i="${i}">${opts(l.pid)}</select>${l.pid ? `<span class="tag ${lv[l.level]}">${esc(t(l.why === 'Barcode' || l.why === 'Saved' || l.why === 'Manual' ? l.why : 'Name')) + (/%$/.test(l.why) ? ' ' + l.why : '')}</span>` : ''}</td>
         <td><input class="input num" style="width:80px" data-in="rcv-qty" data-i="${i}" data-k="rcq${i}" value="${l.qty}" inputmode="decimal"></td>
         <td class="r num">${after(l, p)}</td></tr>`;
