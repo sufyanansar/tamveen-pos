@@ -1012,38 +1012,20 @@
   }
   const rcNorm = (s) => rcArNorm(rcDigits(s)).toLowerCase().replace(/(\d)\s*(كجم|كغ|جم|غ|مل|لتر)(?![ء-ي])/g, (m, d, u) => d + RC_SIZE[u]).replace(/(\d)\s+(g|kg|ml|l|pcs)\b/g, '$1$2')
     .split(/[^a-z0-9.ء-ي]+/).filter(Boolean).map((w) => RC_ABBR[w] || w).join(' ');
-  const rcSizes = (s) => (s.match(/\d+(?:\.\d+)?(?:kg|ml|g|l|pcs)(?![a-z])/g) || []).sort().join(',');
-  const rcBigrams = (s) => { const a = [], x = s.replace(/ /g, ''); for (let i = 0; i < x.length - 1; i++) a.push(x.substr(i, 2)); return a; };
-  function rcScore1(desc, name) {
-    const a = rcNorm(desc), b = rcNorm(name);
-    const A = rcBigrams(a), B = rcBigrams(b), rest = B.slice(); let hit = 0;
-    A.forEach((x) => { const k = rest.indexOf(x); if (k >= 0) { hit++; rest.splice(k, 1); } });
-    const dice = A.length + B.length ? 2 * hit / (A.length + B.length) : 0;
-    const aw = a.split(' ').filter((w) => w.length >= 3), bw = b.split(' ');
-    const cover = aw.length ? aw.filter((w) => bw.some((v) => v.startsWith(w) || (w.startsWith(v) && v.length >= 3))).length / aw.length : 0;
-    let s = 0.5 * dice + 0.5 * cover;
-    const sa = rcSizes(a), sb = rcSizes(b); if (sa && sb && sa !== sb) s *= 0.6;
-    return s;
-  }
-  const rcScore = (desc, p) => Math.max(rcScore1(desc, p.en), p.ar ? rcScore1(desc, p.ar) : 0);
   function rcMatch(l, sup) {
     if (l.barcode) {
       for (const p of db.products) { const k = p.packs.find((x) => x.barcode === l.barcode); if (k) return { pid: p.id, mult: k.qty, level: 'exact', why: 'Barcode' }; }
     }
     const mem = db.rcMemory || RC_MEMORY, key = sup + '|' + (l.code || rcNorm(l.desc));
     if (mem[key] && prod(mem[key])) return { pid: mem[key], mult: 1, level: 'exact', why: 'Saved' };
-    let best = null, bs = 0;
-    db.products.forEach((p) => { const s = rcScore(l.desc, p); if (s > bs) { bs = s; best = p; } });
-    const pct = Math.round(bs * 100) + '%';
-    if (bs >= 0.75) return { pid: best.id, mult: 1, level: 'likely', why: pct };
-    if (bs >= 0.5) return { pid: best.id, mult: 1, level: 'check', why: pct };
     return { pid: '', mult: 1, level: 'none', why: '' };
   }
+  const rcOpt = (p) => [N(p)].concat(p.packs.map((k) => k.barcode).filter(Boolean)).join(' · ');
   function rcRead(text, engine, secs) {
     const R = ui.rcv;
     R.lines = text.split(/\r?\n/).map(rcParse).filter(Boolean).map((l) => {
       const m = rcMatch(l, R.sup);
-      return Object.assign(l, m, { on: !!m.pid && !!(l.barcode || l.code), qty: r2(l.qty * m.mult) }); // no barcode or code: tick it yourself
+      return Object.assign(l, m, { on: true, qty: r2(l.qty * m.mult) });
     });
     clearInterval(R.timer);
     R.busy = false; R.status = t('{n} lines', { n: R.lines.length }) + ' · ' + engine + (secs ? ' · ' + secs + 's' : '') + (R.err ? ' · OCR server failed after ' + R.errSecs + 's: ' + R.err : ''); render();
@@ -1088,17 +1070,16 @@
   function viewReceive() {
     const R = ui.rcv;
     const opts = (sel) => `<option value="">—</option>` + db.products.map((p) => `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(N(p))}</option>`).join('');
-    const lv = { exact: '', likely: '', check: 'amber', none: 'red' };
     const after = (l, p) => p ? `${qtyFmt(p.stock, p.weighted)} → <b>${qtyFmt(r2(p.stock + (l.on ? Number(l.qty) || 0 : 0)), p.weighted)}</b>` : '—';
     const rows = R.lines.map((l, i) => {
       const p = prod(l.pid);
-      return `<tr class="${l.on ? '' : 'off'}"><td><input type="checkbox" data-in="rc-on" data-i="${i}" ${l.on ? 'checked' : ''} aria-label="${t('Include')}"></td>
-        <td class="num">${esc([l.barcode, l.code].filter(Boolean).join(' · ') || '—')}</td>
-        <td><select class="input" data-in="rc-pid" data-i="${i}">${opts(l.pid)}</select>${l.pid ? `<span class="tag ${lv[l.level]}">${esc(t(l.why === 'Barcode' || l.why === 'Saved' || l.why === 'Manual' ? l.why : 'Name')) + (/%$/.test(l.why) ? ' ' + l.why : '')}</span>` : ''}</td>
+      return `<tr><td class="num">${esc([l.barcode, l.code].filter(Boolean).join(' · ') || '—')}</td>
+        <td>${p ? `<b>${esc(N(p))}</b> <span class="tag">${esc(t(l.why))}</span>` : `<input class="input" type="search" list="rc-prods" data-in="rc-find" data-i="${i}" data-k="rcf${i}" aria-label="${t('Product')}">`}</td>
         <td><input class="input num" style="width:80px" data-in="rcv-qty" data-i="${i}" data-k="rcq${i}" value="${l.qty}" inputmode="decimal"></td>
-        <td class="r num">${after(l, p)}</td></tr>`;
+        <td class="r num">${after(l, p)}</td>
+        <td class="r"><button class="btn sm ghost" data-a="rc-del" data-i="${i}" aria-label="${t('Remove')}">×</button></td></tr>`;
     }).join('');
-    const blocked = R.mode === 'upload' && R.lines.some((l) => l.on && !l.pid);
+    const blocked = R.mode === 'upload' && R.lines.some((l) => !l.pid);
     const units = R.lines.filter((l) => l.on && l.pid).length;
     const head = `<div class="page-h"><div><h1>${t('Receive stock')}</h1></div>${R.mode ? `<button class="btn sm ghost" data-a="rc-mode" data-m="">${t('Back')}</button>` : ''}</div>`;
     if (!R.mode) {
@@ -1121,7 +1102,8 @@
       <div class="rc">
         <div class="rc-doc">${R.img ? `<div class="rc-img"><img src="${R.img}" alt=""></div>` : R.sample ? `<pre>${esc(RC_SAMPLE)}</pre>` : ''}
           <label class="${R.img || R.sample ? 'btn ghost' : 'rc-up'}">${I.camera}${t('Upload')}<input type="file" accept="image/*" id="rc-file" hidden></label><div class="small rc-st" id="rc-status">${esc(R.status || '')}</div></div>
-        <div>${R.lines.length ? `<div class="tblwrap"><table class="tbl rc-tbl"><thead><tr><th></th><th>${t('Scanned')}</th><th>${t('Product')}</th><th>${t('Qty')}</th><th class="r">${t('Stock')}</th></tr></thead><tbody>${rows}</tbody></table></div>
+        <div>${R.lines.length ? `<div class="tblwrap"><table class="tbl rc-tbl"><thead><tr><th>${t('Barcode')}</th><th>${t('Product')}</th><th>${t('Qty')}</th><th class="r">${t('Stock')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+          <datalist id="rc-prods">${db.products.map((p) => `<option value="${esc(rcOpt(p))}"></option>`).join('')}</datalist>
           <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn primary" data-a="rc-add" ${blocked || !units ? 'disabled' : ''}>${t('Add to stock')}</button></div>` : ''}</div>
       </div>`;
   }
@@ -1611,7 +1593,7 @@
     'inv-filter': (el) => { ui.invFilter = el.value; render(); },
     'browse-cat': (el) => { ui.modal.cat = el.value; ui.modal.q = ''; renderModal(); },
     'rc-sup': (el) => { ui.rcv.sup = el.value; render(); },
-    'rc-on': (el) => { ui.rcv.lines[el.dataset.i].on = el.checked; render(); },
+    'rc-find': (el) => { const p = db.products.find((x) => rcOpt(x) === el.value); if (!p) return; const l = ui.rcv.lines[el.dataset.i]; l.pid = p.id; l.level = 'exact'; l.why = 'Manual'; render(); },
     'rc-pid': (el) => { const l = ui.rcv.lines[el.dataset.i]; l.pid = el.value; l.level = el.value ? 'exact' : 'none'; l.why = 'Manual'; render(); },
     'rcv-qty': (el) => { ui.rcv.lines[el.dataset.i].qty = el.value; render(); },
     nextqty: (el) => { ui.nextQty = el.value.replace(/[^\d.]/g, ''); },
