@@ -230,7 +230,7 @@
               <span class="eyebrow">${t('Store sign-in')}</span>
               <h1>${t('Welcome back.')}</h1>
             </div>
-            <label class="field"><span>${t('Store ID')}</span><input class="input" name="store" autocomplete="username" placeholder="[Store ID]" value="B1-RIYADH" required data-k="store"></label>
+            <label class="field"><span>${t('Store ID')}</span><input class="input" name="store" autocomplete="username" value="B1-RIYADH" required data-k="store"></label>
             <label class="field"><span class="between"><span>${t('Password')}</span><a href="#" data-a="forgot" style="font-size:13px">${t('Forgot password?')}</a></span>
               <span class="inwrap"><input class="input" type="password" name="password" value="demo1234" autocomplete="current-password" required id="pw" data-k="pw" style="padding-inline-end:52px">
               <button type="button" data-a="toggle-pw" aria-label="${t('Show password')}" style="position:absolute;inset-inline-end:6px;width:44px;height:44px;border:0;background:none;display:flex;align-items:center;justify-content:center">${I.eye}</button></span></label>
@@ -240,7 +240,6 @@
             <button class="btn primary" type="submit" style="height:56px;font-size:16px">${t('Sign in')} ${arrow()}</button>
             <div class="divider">${t('or')}</div>
             <button class="btn" type="button" data-a="pin-unlock" style="height:52px">${t('Unlock with PIN')}</button>
-            <div class="demo-hint">${t('PINs')} · ${t('Cashier')} <code>1111</code> · ${t('Manager')} <code>1234</code> · ${t('Owner')} <code>9999</code></div>
           </form>
         </div>
         <div class="row" style="flex-wrap:wrap;gap:8px 16px">
@@ -1034,97 +1033,179 @@
   }
 
   // ---------------------------------------------------------------- views: receive stock from a delivery document
-  // Photo → in-browser OCR (Tesseract.js) → lines matched by barcode, saved supplier code, then name → review → add to stock.
+  // Photo → DeepSeek-OCR-2 server if set, else in-browser OCR (Tesseract.js) → lines matched by barcode or saved supplier code, the rest searched or removed → review → add to stock.
   const RC_SAMPLE = 'ALMARAI CO.\nDELIVERY NOTE DN-55821 24/10/2026\nCode Item Qty Price Total\n6281000001028 Fresh Milk 1L Carton 4 CTN 62.40 249.60\nAL-220 Laban 1L 24 4.40 105.60\nWHT CHEESE 500G x1O 14.30 143.00\n6281000007013 Orange Juice 1.4L 12 8.20 98.40\nYoghurt Cup 170g 24 1.50 36.00\nSubtotal 632.60 VAT 15% 94.89\nTotal SAR 727.49';
   const RC_MEMORY = { 's1|AL-220': 'p9' };
-  const RC_SKIP = /\b(sub ?total|total|vat|tax|date|invoice|purchase order|delivery note|received|thank|items|tel|phone|code item|barcode description)\b/i;
-  const RC_UNIT = /^(bag|btl|box|can|pcs?|ea|ctn|cartons?|pk|pack|kg|unit|x)$/i;
+  const RC_SKIP = /\b(sub ?total|total|vat|tax|date|invoice|purchase order|delivery note|received|thank|items|tel|phone|code item|barcode description)\b|المجموع|الاجمالي|ضريبه|فاتوره|التاريخ|الصنف|الكميه|سند استلام|رقم/i; // Arabic as normalized by rcArNorm
+  const RC_UNIT = /^(bag|btl|box|can|pcs?|ea|ctn|cartons?|pk|pack|kg|unit|x|كيس|عبوه|علبه|حبه|حبات|كرتون|كرتونه|صندوق|ربطه|باكيت|قطعه)$/i;
+  const RC_SIZE = { كجم: 'kg', كغ: 'kg', كيلو: 'kg', جم: 'g', غ: 'g', جرام: 'g', مل: 'ml', لتر: 'l', ل: 'l', kg: 'kg', g: 'g', ml: 'ml', l: 'l', ltr: 'l' };
   const RC_ABBR = { pst: 'paste', chkn: 'chicken', inst: 'instant', jce: 'juice', wtr: 'water', wht: 'white', gr: 'green', bg: 'bags', pk: 'pack', ltr: 'l' };
+  // Arabic-Indic digits and separators to Western; Arabic letter variants to one form.
+  const rcDigits = (s) => String(s).replace(/[٠-٩]/g, (d) => d.charCodeAt(0) - 0x660).replace(/[۰-۹]/g, (d) => d.charCodeAt(0) - 0x6F0).replace(/٫/g, '.').replace(/٬/g, ',');
+  const rcArNorm = (s) => s.replace(/[ً-ٰٟـ]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي');
   function rcParse(raw) {
-    const line = raw.replace(/[؀-ۿ]+/g, ' ').replace(/\s+/g, ' ').trim();
-    if (!line || RC_SKIP.test(line)) return null;
+    const line = rcDigits(raw).replace(/\s+/g, ' ').trim();
+    if (!line || RC_SKIP.test(rcArNorm(line))) return null;
     // OCR often reads 0 as O and 1 as l inside numbers.
     const toks = line.split(' ').map((tk) => (/\d/.test(tk) && /^[xX]?[\dOoIl.,]+$/.test(tk) ? tk.replace(/[Oo]/g, '0').replace(/[Il]/g, '1') : tk));
-    let barcode = null, code = null, qty = null;
+    let barcode = null, code = null, qty = null, unitQty = null;
     const nums = [], words = [];
     toks.forEach((tk, i) => {
+      if (tk === null) return;
       if (!barcode && /^\d{8,14}$/.test(tk)) { barcode = tk; return; }
       if (!code && /^[A-Z]{2,4}-\d{2,5}$/.test(tk)) { code = tk; return; }
       const xq = tk.match(/^[xX×](\d+)$/); if (xq && qty == null) { qty = +xq[1]; return; }
       if (/^\d+([.,]\d+)?$/.test(tk)) {
         if (i === 0 && /^\d{1,3}$/.test(tk)) return;
-        const nx = toks[i + 1];
+        const nx = toks[i + 1], sz = nx && RC_SIZE[rcArNorm(nx).toLowerCase()];
+        if (sz) { words.push(tk.replace(',', '.') + sz); toks[i + 1] = null; return; }
         if (/^\d+$/.test(tk) && words.length && nx && /^[a-z]{3,}$/i.test(nx) && !RC_UNIT.test(nx)) { words.push(tk); return; }
+        if (/^\d{1,5}$/.test(tk) && nx && RC_UNIT.test(rcArNorm(nx))) unitQty = +tk; // the count printed just before a unit wins
         nums.push(tk.replace(',', '.')); return;
       }
-      if (RC_UNIT.test(tk)) return;
-      if (/[a-z]/i.test(tk)) words.push(tk);
+      if (RC_UNIT.test(rcArNorm(tk))) return;
+      if (/[a-zء-ي]/i.test(tk)) words.push(tk);
     });
-    const ints = nums.filter((n) => /^\d+$/.test(n));
-    if (qty == null && ints.length) qty = +ints[0];
+    const ints = nums.filter((n) => /^\d{1,5}$/.test(n));
+    if (qty == null) qty = unitQty != null ? unitQty : ints.length ? +ints[0] : null;
     if (qty == null || !words.length) return null;
     return { desc: words.join(' '), barcode, code, qty };
   }
-  const rcNorm = (s) => s.toLowerCase().replace(/(\d)\s+(g|kg|ml|l|pcs)\b/g, '$1$2').split(/[^a-z0-9.]+/).filter(Boolean).map((w) => RC_ABBR[w] || w).join(' ');
-  const rcSizes = (s) => (s.match(/\b\d+(?:\.\d+)?(?:g|kg|ml|l|pcs)\b/g) || []).sort().join(',');
-  const rcBigrams = (s) => { const a = [], x = s.replace(/ /g, ''); for (let i = 0; i < x.length - 1; i++) a.push(x.substr(i, 2)); return a; };
-  function rcScore(desc, p) {
-    const a = rcNorm(desc), b = rcNorm(p.en);
-    const A = rcBigrams(a), B = rcBigrams(b), rest = B.slice(); let hit = 0;
-    A.forEach((x) => { const k = rest.indexOf(x); if (k >= 0) { hit++; rest.splice(k, 1); } });
-    const dice = A.length + B.length ? 2 * hit / (A.length + B.length) : 0;
-    const aw = a.split(' ').filter((w) => w.length >= 3), bw = b.split(' ');
-    const cover = aw.length ? aw.filter((w) => bw.some((v) => v.startsWith(w) || (w.startsWith(v) && v.length >= 3))).length / aw.length : 0;
-    let s = 0.5 * dice + 0.5 * cover;
-    const sa = rcSizes(a), sb = rcSizes(b); if (sa && sb && sa !== sb) s *= 0.6;
-    return s;
-  }
+  const rcNorm = (s) => rcArNorm(rcDigits(s)).toLowerCase().replace(/(\d)\s*(كجم|كغ|جم|غ|مل|لتر)(?![ء-ي])/g, (m, d, u) => d + RC_SIZE[u]).replace(/(\d)\s+(g|kg|ml|l|pcs)\b/g, '$1$2')
+    .split(/[^a-z0-9.ء-ي]+/).filter(Boolean).map((w) => RC_ABBR[w] || w).join(' ');
   function rcMatch(l, sup) {
     if (l.barcode) {
       for (const p of db.products) { const k = p.packs.find((x) => x.barcode === l.barcode); if (k) return { pid: p.id, mult: k.qty, level: 'exact', why: 'Barcode' }; }
     }
     const mem = db.rcMemory || RC_MEMORY, key = sup + '|' + (l.code || rcNorm(l.desc));
     if (mem[key] && prod(mem[key])) return { pid: mem[key], mult: 1, level: 'exact', why: 'Saved' };
-    let best = null, bs = 0;
-    db.products.forEach((p) => { const s = rcScore(l.desc, p); if (s > bs) { bs = s; best = p; } });
-    const pct = Math.round(bs * 100) + '%';
-    if (bs >= 0.75) return { pid: best.id, mult: 1, level: 'likely', why: pct };
-    if (bs >= 0.5) return { pid: best.id, mult: 1, level: 'check', why: pct };
     return { pid: '', mult: 1, level: 'none', why: '' };
   }
-  function rcRead(text) {
+  const rcOpt = (p) => [p.en, p.ar].concat(p.packs.map((k) => k.barcode).filter(Boolean)).join(' · ');
+  const rcLines = (text) => text.split(/\r?\n/).map(rcParse).filter(Boolean);
+  function rcRead(text, lines) {
     const R = ui.rcv;
-    R.lines = text.split(/\r?\n/).map(rcParse).filter(Boolean).map((l) => {
+    R.lines = (lines || rcLines(text)).map((l) => {
       const m = rcMatch(l, R.sup);
-      return Object.assign(l, m, { on: !!m.pid, qty: r2(l.qty * m.mult) });
+      return Object.assign(l, m, { on: true, qty: r2(l.qty * m.mult) });
     });
-    R.busy = false; R.status = t('{n} lines', { n: R.lines.length }); render();
+    clearInterval(R.timer);
+    R.busy = false; R.status = t('{n} lines', { n: R.lines.length }) + (R.err ? ' · ' + R.err : ''); render();
   }
   function rcLoadTess() {
     if (window.Tesseract) return Promise.resolve();
     return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
   }
-  function rcPhoto(file) {
+  function rcPct(n) {
+    const R = ui.rcv; R.pct = Math.max(R.pct || 0, Math.min(99, Math.floor(n)));
+    R.status = t('Scanning document…') + ' ' + R.pct + '%'; const st = $('#rc-status'); if (st) st.textContent = R.status;
+  }
+  function rcTess(files) {
+    const R = ui.rcv; clearInterval(R.timer); const from = R.pct || 0, n = files.length;
+    const texts = [];
+    const one = (i) => (i >= n ? Promise.resolve() : window.Tesseract.recognize(files[i], 'eng', { logger: (m) => {
+      if (m.status === 'recognizing text') rcPct(from + (100 - from) * (i + m.progress) / n);
+    } }).then((r) => { texts.push(r.data.text); return one(i + 1); }));
+    rcLoadTess().then(() => one(0)).then(() => rcRead(rcJoin(texts))).catch(() => { R.busy = false; R.status = t('Could not read the photo.') + (R.err ? ' · OCR server: ' + R.err : ''); render(); });
+  }
+  // Joins the text of overlapping parts of one long document: the lines read twice where the parts overlap are kept once.
+  // The overlap is the end of one part and the start of the next, give or take a line cut in half at either edge; the
+  // longest run of lines that agree there wins. A run needs a long number (a barcode) among its lines, or at least three
+  // lines that all agree, since lines like "VAT 15%" repeat on every item. With no agreement the texts are simply joined.
+  const rcKey = (s) => rcArNorm(rcDigits(s)).toLowerCase().replace(/[^a-z0-9ء-ي]+/g, '');
+  function rcSame(a, b) {
+    if (a === b) return true;
+    if (a.replace(/\D/g, '') !== b.replace(/\D/g, '')) return false; // numbers must agree: lines of different items differ only there
+    if (Math.min(a.length, b.length) < 6 || Math.abs(a.length - b.length) > Math.max(a.length, b.length) * 0.2) return false;
+    let row = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i++) {
+      const nx = [i];
+      for (let j = 1; j <= b.length; j++) nx[j] = Math.min(row[j] + 1, nx[j - 1] + 1, row[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      row = nx;
+    }
+    return row[b.length] <= Math.max(a.length, b.length) * 0.15; // two reads of the same line differ by a letter or two
+  }
+  function rcJoin(texts) {
+    let acc = [];
+    texts.forEach((text) => {
+      const next = String(text || '').split(/\r?\n/).filter((l) => l.trim()), A = acc.map(rcKey), B = next.map(rcKey);
+      let best = null;
+      for (let cut = 0; cut <= 2; cut++) for (let skip = 0; skip <= 2; skip++) {
+        const end = A.length - cut;
+        for (let k = Math.min(20, end, B.length - skip); k >= 1; k--) {
+          let n = 0, strong = false;
+          for (let i = 0; i < k; i++) if (A[end - k + i].length >= 4 && rcSame(A[end - k + i], B[skip + i])) { n++; if (/\d{6,}/.test(rcDigits(next[skip + i]))) strong = true; }
+          // One misread line is allowed in a long overlap that agrees on a barcode-like number.
+          if (strong ? n >= k - (k >= 4 ? 1 : 0) : n === k && n >= 3) { const score = 2 * n - k; if (!best || score > best.score) best = { score, cut, from: skip + k }; break; }
+        }
+      }
+      acc = best ? acc.slice(0, acc.length - best.cut).concat(next.slice(best.from)) : acc.concat(next);
+    });
+    return acc.join('\n');
+  }
+  // DeepSeek-OCR-2 on Modal (bench/modal_ocr.py) unless Settings names another server; old Colab tunnel addresses are stale.
+  const RC_OCR_URL = 'https://sufyanansar2873--tamveen-ocr-ocr-web.us-east.modal.run';
+  const rcOcrUrl = () => { const u = String(db.settings.ocrUrl == null ? RC_OCR_URL : db.settings.ocrUrl).trim(); return /trycloudflare\.com/.test(u) ? RC_OCR_URL : u; };
+  // Progress runs smoothly to 60% over ~15s, then creeps toward 95% until the server answers.
+  function rcServer(files) {
+    const R = ui.rcv, base = rcOcrUrl().replace(/\/+$/, '');
+    if (!base) return Promise.reject('none');
+    const t0 = Date.now(), n = files.length;
+    R.timer = setInterval(() => {
+      const s = (Date.now() - t0) / 1000 / n;
+      rcPct(s <= 15 ? s * 4 : 95 - 35 * Math.exp(-(s - 15) / 60));
+    }, 250);
+    const ask = (blob) => {
+      const fd = new FormData(); fd.append('file', blob, 'photo.jpg');
+      return fetch(base + '/ocr', { method: 'POST', body: fd, headers: { 'ngrok-skip-browser-warning': '1' } })
+        .then((r) => (r.ok ? r.json() : r.text().then((x) => Promise.reject(new Error('HTTP ' + r.status + ' ' + x.slice(0, 120))))))
+        .then((j) => String(j.text || '').replace(/^\s*[-:| ]{3,}\s*$/gm, '').replace(/[#*`]+/g, ' '));
+    };
+    // The model only reads upright text: if nothing comes back, try the photo turned sideways both ways.
+    const tryTurn = (file, turns) => rcImage(file, turns[0]).then(ask).then((text) => {
+      if (rcLines(text).length || turns.length === 1) return text;
+      return tryTurn(file, turns.slice(1));
+    });
+    // Parts of a long receipt are read one after another (one GPU), then joined into one text.
+    const texts = [];
+    const one = (i) => (i >= n ? Promise.resolve() : tryTurn(files[i], [0, 90, 270]).then((text) => { texts.push(text); return one(i + 1); }));
+    return one(0).then(() => rcRead(rcJoin(texts)))
+      .catch((e) => { R.err = (e && e.message) || String(e); console.error('OCR server', base, e); throw e; });
+  }
+  // Upright (EXIF applied), at most 2000px, turned by deg, as a JPEG blob.
+  function rcImage(file, deg) {
+    return createImageBitmap(file, { imageOrientation: 'from-image' }).then((im) => {
+      const k = Math.min(1, 2000 / Math.max(im.width, im.height)), w = Math.round(im.width * k), h = Math.round(im.height * k);
+      const side = deg % 180 !== 0, c = document.createElement('canvas');
+      c.width = side ? h : w; c.height = side ? w : h;
+      const g = c.getContext('2d'); g.translate(c.width / 2, c.height / 2); g.rotate(deg * Math.PI / 180); g.drawImage(im, -w / 2, -h / 2, w, h);
+      return new Promise((res) => c.toBlob(res, 'image/jpeg', 0.9));
+    });
+  }
+  // files: one photo, or the parts of one long document from the top down; preview: what the review screen shows.
+  function rcPhoto(files, preview) {
     const R = ui.rcv; if (R.img) URL.revokeObjectURL(R.img);
-    R.img = URL.createObjectURL(file); R.lines = []; R.busy = true; R.status = t('Reading…'); render();
-    rcLoadTess().then(() => window.Tesseract.recognize(R.img, 'eng', { logger: (m) => {
-      if (m.status === 'recognizing text') { R.status = t('Reading…') + ' ' + Math.round(m.progress * 100) + '%'; const st = $('#rc-status'); if (st) st.textContent = R.status; }
-    } })).then((r) => rcRead(r.data.text)).catch(() => { R.busy = false; R.status = t('Could not read the photo.'); render(); });
+    R.img = URL.createObjectURL(preview || files[0]); R.tall = files.length > 1; R.lines = []; R.busy = true; R.pct = 0; R.err = ''; R.status = t('Scanning document…') + ' 0%'; clearInterval(R.timer); render();
+    rcServer(files).catch(() => rcTess(files));
+  }
+  // Phones and tablets photograph the document with the guided camera; desktops pick a file as before.
+  const rcGuided = () => !!window.DocScanner && !window.matchMedia('(hover:hover) and (pointer:fine)').matches;
+  function rcScan() {
+    DocScanner.open({ onDone: (r) => { ui.rcv.sample = false; rcPhoto(r.parts, r.preview); } });
   }
   function viewReceive() {
     const R = ui.rcv;
     const opts = (sel) => `<option value="">—</option>` + db.products.map((p) => `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(N(p))}</option>`).join('');
-    const lv = { exact: '', likely: '', check: 'amber', none: 'red' };
     const after = (l, p) => p ? `${qtyFmt(p.stock, p.weighted)} → <b>${qtyFmt(r2(p.stock + (l.on ? Number(l.qty) || 0 : 0)), p.weighted)}</b>` : '—';
     const rows = R.lines.map((l, i) => {
       const p = prod(l.pid);
-      return `<tr class="${l.on ? '' : 'off'}"><td><input type="checkbox" data-in="rc-on" data-i="${i}" ${l.on ? 'checked' : ''} aria-label="${t('Include')}"></td>
-        <td><b>${esc(l.desc)}</b><div class="small muted num">${[l.barcode, l.code].filter(Boolean).join(' · ')}</div></td>
-        <td><select class="input" data-in="rc-pid" data-i="${i}">${opts(l.pid)}</select>${l.pid ? `<span class="tag ${lv[l.level]}">${esc(t(l.why === 'Barcode' || l.why === 'Saved' || l.why === 'Manual' ? l.why : 'Name')) + (/%$/.test(l.why) ? ' ' + l.why : '')}</span>` : ''}</td>
+      return `<tr><td class="num">${esc([l.barcode, l.code].filter(Boolean).join(' · ') || '—')}</td>
+        <td>${p ? `<b>${esc(N(p))}</b> <span class="tag">${esc(t(l.why))}</span>` : `<input class="input" type="search" list="rc-prods" data-in="rc-find" data-i="${i}" data-k="rcf${i}" value="${esc(l.desc)}" aria-label="${t('Product')}">`}</td>
         <td><input class="input num" style="width:80px" data-in="rcv-qty" data-i="${i}" data-k="rcq${i}" value="${l.qty}" inputmode="decimal"></td>
-        <td class="r num">${after(l, p)}</td></tr>`;
+        <td class="r num">${after(l, p)}</td>
+        <td class="r"><button class="btn sm ghost" data-a="rc-del" data-i="${i}" aria-label="${t('Remove')}">×</button></td></tr>`;
     }).join('');
-    const blocked = R.mode === 'upload' && R.lines.some((l) => l.on && !l.pid);
+    const blocked = R.mode === 'upload' && R.lines.some((l) => !l.pid);
     const units = R.lines.filter((l) => l.on && l.pid).length;
     const head = `<div class="page-h"><div><h1>${t('Receive stock')}</h1></div>${R.mode ? `<button class="btn sm ghost" data-a="rc-mode" data-m="">${t('Back')}</button>` : ''}</div>`;
     if (!R.mode) {
@@ -1145,9 +1226,11 @@
     return head + `
       ${R.lines.length ? `<div class="rc-bar">${sup}</div>` : ''}
       <div class="rc">
-        <div class="rc-doc">${R.img ? `<img src="${R.img}" alt="">` : R.sample ? `<pre>${esc(RC_SAMPLE)}</pre>` : ''}
-          <label class="${R.img || R.sample ? 'btn ghost' : 'rc-up'}">${I.camera}${t('Upload')}<input type="file" accept="image/*" id="rc-file" hidden></label><div class="small muted" id="rc-status">${esc(R.status || '')}</div></div>
-        <div>${R.lines.length ? `<div class="tblwrap"><table class="tbl rc-tbl"><thead><tr><th></th><th>${t('Scanned')}</th><th>${t('Product')}</th><th>${t('Qty')}</th><th class="r">${t('Stock')}</th></tr></thead><tbody>${rows}</tbody></table></div>
+        <div class="rc-doc">${R.img ? `<div class="rc-img ${R.tall ? 'tall' : ''}"><img src="${R.img}" alt=""></div>` : R.sample ? `<pre>${esc(RC_SAMPLE)}</pre>` : ''}
+          ${rcGuided() ? `<button class="${R.img || R.sample ? 'btn ghost' : 'rc-up'}" data-a="rc-scan">${I.camera}${t(R.img ? 'Scan again' : 'Scan invoice')}</button>`
+            : `<label class="${R.img || R.sample ? 'btn ghost' : 'rc-up'}">${I.camera}${t('Upload')}<input type="file" accept="image/*" id="rc-file" hidden></label>`}<div class="small rc-st" id="rc-status">${esc(R.status || '')}</div></div>
+        <div>${R.lines.length ? `<div class="tblwrap"><table class="tbl rc-tbl"><thead><tr><th>${t('Barcode')}</th><th>${t('Product')}</th><th>${t('Qty')}</th><th class="r">${t('Stock')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+          <datalist id="rc-prods">${db.products.map((p) => `<option value="${esc(rcOpt(p))}"></option>`).join('')}</datalist>
           <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn primary" data-a="rc-add" ${blocked || !units ? 'disabled' : ''}>${t('Add to stock')}</button></div>` : ''}</div>
       </div>`;
   }
@@ -1212,6 +1295,7 @@
         <div style="display:flex;flex-direction:column;gap:16px">
           <div class="card"><h2>${t('Language')}</h2><div class="row"><button class="pill outline ${!isAr() ? 'on' : ''}" data-a="set-lang" data-l="en">English</button><button class="pill outline ${isAr() ? 'on' : ''}" data-a="set-lang" data-l="ar">العربية</button></div></div>
           <div class="card"><h2>${t('Employees')}</h2><div class="list" style="max-height:none">${db.users.map((u) => `<div class="between" style="padding:8px 0;border-bottom:1px solid var(--line)"><span><b>${esc(isAr() ? u.nameAr : u.name)}</b> · ${t(cap(u.role))}</span><span class="small muted">PIN ${u.pin}</span></div>`).join('')}</div></div>
+          <div class="card"><h2>${t('Scanning')}</h2><label class="field"><span>${t('OCR server')}</span><input class="input" dir="ltr" id="ocr-url" data-k="socrUrl" value="${esc(rcOcrUrl())}" inputmode="url"></label><button class="btn primary" data-a="save-ocr" style="margin-top:10px">${t('Save')}</button></div>
           <div class="card"><h2>${t('Demo data')}</h2><button class="btn danger" data-a="reset">${t('Reset demo data')}</button></div>
         </div>
       </div>`;
@@ -1453,6 +1537,7 @@
 
   const actions = {
     lang: () => { db.settings.lang = isAr() ? 'en' : 'ar'; save(); render(); },
+    'save-ocr': () => { db.settings.ocrUrl = $('#ocr-url').value.trim(); save(); toast(t('Saved')); },
     'set-lang': (el) => { db.settings.lang = el.dataset.l; save(); render(); },
     'toggle-pw': () => { const p = $('#pw'); p.type = p.type === 'password' ? 'text' : 'password'; },
     forgot: () => openModal({ kind: 'info', title: 'Forgot password?', body: 'Ask the owner or manager to reset it.' }),
@@ -1567,7 +1652,9 @@
     'rc-mode': (el) => {
       const R = ui.rcv; if (R.img) URL.revokeObjectURL(R.img);
       Object.assign(R, { mode: el.dataset.m, lines: el.dataset.m === 'manual' ? [{ pid: '', qty: '1', on: true, manual: true }] : [], img: null, sample: false, busy: false, status: '' }); render();
+      if (el.dataset.m === 'upload' && rcGuided()) rcScan();
     },
+    'rc-scan': () => rcScan(),
     'rc-line': () => { ui.rcv.lines.push({ pid: '', qty: '1', on: true, manual: true }); render(); },
     'rc-del': (el) => { ui.rcv.lines.splice(Number(el.dataset.i), 1); render(); },
     'rc-sample': () => { const R = ui.rcv; if (R.img) URL.revokeObjectURL(R.img); R.img = null; R.sample = true; rcRead(RC_SAMPLE); },
@@ -1641,7 +1728,7 @@
     'inv-filter': (el) => { ui.invFilter = el.value; render(); },
     'browse-cat': (el) => { ui.modal.cat = el.value; ui.modal.q = ''; renderModal(); },
     'rc-sup': (el) => { ui.rcv.sup = el.value; render(); },
-    'rc-on': (el) => { ui.rcv.lines[el.dataset.i].on = el.checked; render(); },
+    'rc-find': (el) => { const p = db.products.find((x) => rcOpt(x) === el.value); if (!p) return; const l = ui.rcv.lines[el.dataset.i]; l.pid = p.id; l.level = 'exact'; l.why = 'Manual'; render(); },
     'rc-pid': (el) => { const l = ui.rcv.lines[el.dataset.i]; l.pid = el.value; l.level = el.value ? 'exact' : 'none'; l.why = 'Manual'; render(); },
     'rcv-qty': (el) => { ui.rcv.lines[el.dataset.i].qty = el.value; render(); },
     nextqty: (el) => { ui.nextQty = el.value.replace(/[^\d.]/g, ''); },
@@ -1730,7 +1817,7 @@
     if (el.tagName === 'BUTTON' || el.dataset.a === 'forgot') ev.preventDefault();
     fn(el, ev);
   });
-  document.addEventListener('change', (ev) => { if (ev.target.id === 'rc-file' && ev.target.files[0]) { ui.rcv.sample = false; rcPhoto(ev.target.files[0]); } });
+  document.addEventListener('change', (ev) => { if (ev.target.id === 'rc-file' && ev.target.files[0]) { ui.rcv.sample = false; rcPhoto([ev.target.files[0]]); } });
   const onInput = (ev) => {
     const el = ev.target.closest('[data-in]');
     if (!el) return;
@@ -1757,7 +1844,7 @@
     }
   });
   document.addEventListener('keydown', (ev) => {
-    if (window.CameraScanner && CameraScanner.isOpen()) return;
+    if ((window.CameraScanner && CameraScanner.isOpen()) || (window.DocScanner && DocScanner.isOpen())) return;
     if (!ui.modal && db.session && route()[0] === 'checkout' && /^F[2-5]$/.test(ev.key)) {
       ev.preventDefault();
       const a = { F2: 'cust-pick', F3: 'browse', F5: 'pay' }[ev.key];
