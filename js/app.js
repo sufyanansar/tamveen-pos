@@ -162,7 +162,7 @@
   function chips() {
     const d = ui.demo;
     const c = (ok, en, okTxt, badTxt, warn) => `<button class="chip ${ok ? '' : (warn ? 'warn' : 'bad')}" data-a="demo-open" title="${esc(t('Simulate states from the demo panel'))}"><span class="dot"></span>${t(en)} · ${t(ok ? okTxt : badTxt)}</button>`;
-    return c(d.server, 'Shop server', 'Connected', 'Lost') + c(d.internet, 'Internet', 'Online', 'Offline') + c(d.printer, 'Printer', 'Ready', 'Out of paper', true);
+    return c(d.printer, 'Printer', 'Ready', 'Out of paper', true);
   }
 
   function shell(content, opts = {}) {
@@ -243,8 +243,6 @@
           </form>
         </div>
         <div class="row" style="flex-wrap:wrap;gap:8px 16px">
-          <span class="chip"><span class="dot"></span>${t('Shop server')} · ${t('Connected')}</span>
-          <span class="chip"><span class="dot"></span>${t('Internet')} · ${t('Online')}</span>
           <span class="spacer"></span><span class="small muted">© 2026 TrueGrad</span>
         </div>
       </section>
@@ -268,7 +266,15 @@
     const mk = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
     const prog = gl.createProgram();
     gl.attachShader(prog, mk(gl.VERTEX_SHADER, 'attribute vec2 position; varying vec2 uv; void main(){ uv=(position+1.0)*0.5; gl_Position=vec4(position,0.0,1.0); }'));
-    gl.attachShader(prog, mk(gl.FRAGMENT_SHADER, 'precision mediump float; uniform sampler2D frame; varying vec2 uv; void main(){ vec3 color=texture2D(frame,vec2(uv.x*0.5,uv.y)).rgb; float alpha=texture2D(frame,vec2(0.5+uv.x*0.5,uv.y)).r; gl_FragColor=vec4(color*alpha,alpha); }'));
+    // The matte is jagged and carries a pale fringe of the original sky, so the alpha is
+    // blurred over a small disc, then re-sharpened just inside the edge.
+    gl.attachShader(prog, mk(gl.FRAGMENT_SHADER, `precision highp float; uniform sampler2D frame; varying vec2 uv;
+      float a(vec2 o){ vec2 p=clamp(vec2(uv.x+o.x/720.0,uv.y+o.y/800.0),vec2(0.0),vec2(1.0)); return texture2D(frame,vec2(0.5+p.x*0.5,p.y)).r; }
+      void main(){ float s=a(vec2(0.0))*2.0;
+        for(int i=0;i<12;i++){ float t=float(i)*0.5236; vec2 d=vec2(cos(t),sin(t)); s+=a(d*2.2)+a(d*4.4); }
+        float alpha=smoothstep(0.42,0.68,s/26.0);
+        vec3 color=texture2D(frame,vec2(uv.x*0.5,uv.y)).rgb;
+        gl_FragColor=vec4(color*alpha,alpha); }`));
     gl.linkProgram(prog); gl.useProgram(prog);
     gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);

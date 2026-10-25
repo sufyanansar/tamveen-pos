@@ -117,7 +117,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
 .signin .lead{margin:0;font-size:16px;line-height:1.6;color:var(--muted)}
 .signin .input{height:54px;border-radius:16px}
 .vision{flex:1 1 480px;min-height:380px;position:relative;overflow:hidden;background:#CFDCDD;isolation:isolate}
-.vision-logo{position:absolute;z-index:1;top:7%;left:50%;width:82%;max-width:560px;height:44%;object-fit:contain;transform:translate(-50%,0);animation:vision-in 2200ms cubic-bezier(.2,.7,.2,1) 150ms both}
+.vision-logo{position:absolute;z-index:1;top:12%;left:50%;width:66%;max-width:440px;height:36%;object-fit:contain;transform:translate(-50%,0);animation:vision-in 2200ms cubic-bezier(.2,.7,.2,1) 150ms both}
 .flag-fg{position:absolute;z-index:2;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
 .flag-ready .flag-poster{visibility:hidden}
 .flag-video{position:absolute;z-index:0;inset:0;width:100%;height:100%;opacity:.001;pointer-events:none}
