@@ -212,6 +212,8 @@ window.I18N_AR = {
   'Enter a phone number or email.': 'أدخل رقم جوال أو بريداً إلكترونياً.',
   'Enter an amount to see how it is allocated.': 'أدخل مبلغاً لرؤية طريقة توزيعه.',
   'Enter your PIN': 'أدخل رقمك السري',
+  'Username': 'اسم المستخدم',
+  'Wrong username or password.': 'اسم المستخدم أو كلمة المرور غير صحيحة.',
   'Entry': 'القيد',
   'Everything is up to date': 'كل شيء محدّث',
   'Excl. VAT': 'غير شامل الضريبة',

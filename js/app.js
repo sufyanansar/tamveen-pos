@@ -225,22 +225,20 @@
         <div class="row">${logo(40)}<span class="ar" style="font-size:26px;font-weight:700;line-height:1">تَمْوِين</span><span class="spacer"></span>
           <button class="btn sm ghost" data-a="lang" style="height:40px">${isAr() ? 'English' : 'العربية'}</button></div>
         <div style="flex:1;display:flex;align-items:center">
-          <form data-form="signin" autocomplete="on">
-            <div style="display:flex;flex-direction:column;gap:10px">
-              <span class="eyebrow">${t('Store sign-in')}</span>
-              <h1>${t('Welcome back.')}</h1>
-            </div>
-            <label class="field"><span>${t('Store ID')}</span><input class="input" name="store" autocomplete="username" value="B1-RIYADH" required data-k="store"></label>
-            <label class="field"><span class="between"><span>${t('Password')}</span><a href="#" data-a="forgot" style="font-size:13px">${t('Forgot password?')}</a></span>
-              <span class="inwrap"><input class="input" type="password" name="password" value="demo1234" autocomplete="current-password" required id="pw" data-k="pw" style="padding-inline-end:52px">
+          ${isPhone() ? `<form data-form="signin" autocomplete="on">
+            <h1>${t('Welcome back.')}</h1>
+            <label class="field"><span>${t('Username')}</span><input class="input" name="username" autocomplete="username" autocapitalize="none" required data-k="un"></label>
+            <label class="field"><span>${t('Password')}</span>
+              <span class="inwrap"><input class="input" type="password" name="password" autocomplete="current-password" required id="pw" data-k="pw" style="padding-inline-end:52px">
               <button type="button" data-a="toggle-pw" aria-label="${t('Show password')}" style="position:absolute;inset-inline-end:6px;width:44px;height:44px;border:0;background:none;display:flex;align-items:center;justify-content:center">${I.eye}</button></span></label>
-            <label class="row muted" style="min-height:44px;gap:10px"><input type="checkbox" name="remember" style="width:20px;height:20px;accent-color:#105448">${t('Remember this device')}</label>
-            <label class="field"><span>${t('Sign in as')}</span>
-              <select class="input" name="user">${db.users.map((u) => `<option value="${u.id}">${esc(isAr() ? u.nameAr : u.name)} · ${t(cap(u.role))}</option>`).join('')}</select></label>
+            ${ui.signErr ? `<div class="small" style="color:var(--red)">${t(ui.signErr)}</div>` : ''}
             <button class="btn primary" type="submit" style="height:56px;font-size:16px">${t('Sign in')} ${arrow()}</button>
-            <div class="divider">${t('or')}</div>
-            <button class="btn" type="button" data-a="pin-unlock" style="height:52px">${t('Unlock with PIN')}</button>
-          </form>
+          </form>` : `<form data-form="signin-pin" onsubmit="return false">
+            <h1>${t('Welcome back.')}</h1>
+            <label class="field"><span>${t('Store ID')}</span><input class="input" name="store" value="${esc(db.settings.storeId || 'B1-RIYADH')}" data-k="store"></label>
+            <div class="field"><span>${t('Enter your PIN')}</span></div>
+            <div class="pin-inline">${pinPad(ui.signPin || (ui.signPin = { kind: 'pin-unlock', pin: '', inline: true }))}</div>
+          </form>`}
         </div>
         <div class="row" style="flex-wrap:wrap;gap:8px 16px">
           <span class="spacer"></span><span class="small muted">© 2026 TrueGrad</span>
@@ -1519,8 +1517,12 @@
     render();
   }
   function pinEntered(pin) {
-    const m = ui.modal;
+    const m = ui.modal || ui.signPin;
     const u = db.users.find((x) => x.pin === pin);
+    if (m.inline) {
+      if (!u) { Object.assign(m, { pin: '', err: 'Wrong PIN. Try again.' }); $('.pin-inline').innerHTML = pinPad(m); return; }
+      ui.signPin = null; signIn(u.id); return;
+    }
     if (m.kind === 'pin-unlock') {
       if (!u) return Object.assign(m, { pin: '', err: 'Wrong PIN. Try again.' }) && renderModal();
       const switching = db.session && db.session.userId;
@@ -1550,9 +1552,9 @@
     'pin-unlock': () => openModal({ kind: 'pin-unlock', pin: '' }),
     'switch-user': () => openModal({ kind: 'pin-unlock', pin: '' }),
     'pin-key': (el) => {
-      const m = ui.modal, k = el.dataset.k2; m.err = '';
+      const m = ui.modal || ui.signPin, k = el.dataset.k2; m.err = '';
       if (k === 'C') m.pin = ''; else if (k === '⌫') m.pin = (m.pin || '').slice(0, -1); else if ((m.pin || '').length < 4) m.pin = (m.pin || '') + k;
-      renderModal();
+      if (m.inline) $('.pin-inline').innerHTML = pinPad(m); else renderModal();
       if (m.pin.length === 4) setTimeout(() => pinEntered(m.pin), 120);
     },
     close: () => closeModal(),
@@ -1840,7 +1842,11 @@
     const f = ev.target.closest('[data-form]'); if (!f) return;
     ev.preventDefault();
     const data = Object.fromEntries(new FormData(f).entries());
-    if (f.dataset.form === 'signin') signIn(data.user);
+    if (f.dataset.form === 'signin') {
+      const n = String(data.username || '').trim().toLowerCase(), u = db.users.find((x) => x.name.toLowerCase() === n || x.nameAr === n);
+      if (!u) { ui.signErr = 'Wrong username or password.'; return render(); }
+      ui.signErr = ''; signIn(u.id);
+    }
     if (f.dataset.form === 'scan') { if (data.code.trim()) scan(data.code.trim()); const s = $('#scan'); if (s) { s.value = ''; s.focus(); } }
     if (f.dataset.form === 'find-inv') {
       const q = (data.no || '').trim().toUpperCase();
@@ -1858,7 +1864,7 @@
       return;
     }
     if (ev.key === 'Escape' && ui.modal && ui.modal.kind !== 'terminal') closeModal();
-    if (ui.modal && /^(pin-unlock|approve)$/.test(ui.modal.kind)) {
+    if ((ui.modal && /^(pin-unlock|approve)$/.test(ui.modal.kind)) || (!ui.modal && ui.signPin && !(db.session && db.session.userId) && document.activeElement.tagName !== 'INPUT')) {
       if (/^\d$/.test(ev.key)) { const b = document.querySelector(`[data-a="pin-key"][data-k2="${ev.key}"]`); if (b) b.click(); }
       if (ev.key === 'Backspace') { const b = document.querySelector('[data-a="pin-key"][data-k2="⌫"]'); if (b) b.click(); }
       return;
