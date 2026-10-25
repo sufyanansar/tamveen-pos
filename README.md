@@ -23,7 +23,7 @@ A clickable proof of concept of the Tamveen (تموين) grocery point of sale, 
 | Returns | Credit note linked to the original invoice, partial quantities, restock, refund to cash / card / account balance |
 | Customers & credit | Balances, credit limit and terms, oldest-unpaid ageing, record payment with oldest-first or manual allocation, statement |
 | Products | Add / edit product, Arabic and English names, VAT category (locked for cashiers), packs and barcodes with duplicate detection, VAT-inclusive price breakdown, margin preview |
-| Receive stock | Photo of a delivery note or invoice read in the browser (Tesseract.js), lines matched by barcode, saved supplier code or name, reviewed, then added to stock; confirmed matches are remembered per supplier |
+| Receive stock | Photo of a delivery note or invoice read by DeepSeek-OCR-2 (else in the browser with Tesseract.js). On phones and tablets a guided camera takes the photo: a frame shaped like a full A4 page or a long receipt turns green when the paper fills it and the phone is steady, then shoots by itself; long receipts are taken in parts from the top down, each lined up with a faded strip of the previous part, and read as one document. Desktop picks a file. Lines are matched by barcode, saved supplier code or name, reviewed, then added to stock; confirmed matches are remembered per supplier |
 | Also | Orders (WhatsApp / phone / app) loaded into checkout, inventory with receiving by pack, suppliers, daily reports, audit history, close shift with cash count |
 
 Everything is in English and Arabic (right-to-left), switchable from the top bar.
@@ -46,6 +46,7 @@ js/data.js        sample shop data (products, customers, invoices, orders…)
 js/i18n-ar.js     Arabic strings
 js/app.js         the app: routing, views, actions
 js/camera.js      camera barcode scanner (BarcodeDetector, else zxing-wasm, else ZXing JS)
+js/docscan.js     guided camera for delivery documents (A4 page or long receipt in parts)
 js/zxing-wasm-reader.js, js/zxing_reader.wasm  ZXing-C++ as WebAssembly (zxing-wasm 3.1.4, MIT), loaded only when needed
 js/zxing.min.js   ZXing barcode reader (@zxing/library 0.21.3, Apache-2.0), loaded only when needed
 js/qrcode.js      QR code generator (qrcode-generator 1.4.4, MIT)
