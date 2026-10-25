@@ -4,6 +4,7 @@
 //   DELETE  delete the account: profile and addresses go at once; past orders keep only what a tax invoice needs.
 import { api, need, fail } from './_lib/core.js';
 import { readDoc, updateDoc, ACTIVE } from './_lib/docs.js';
+import { deleteFiles } from './_lib/store.js';
 
 const s = (v, n) => String(v == null ? '' : v).replace(/[\u0000-\u001f]/g, '').trim().slice(0, n);
 const num = (v) => (v === '' || v == null || !isFinite(Number(v)) ? null : Number(v));
@@ -42,9 +43,10 @@ export default api({
         if (o.customerId !== user.sub) return;
         if (ACTIVE.includes(o.status) && o.status !== 'out') { o.status = 'cancelled'; o.cancelReason = 'Customer deleted their account'; o.history.push({ s: 'cancelled', at: new Date().toISOString(), by: 'customer' }); }
         o.customerId = null; o.customer = { name: 'Deleted customer', phone: '' };
-        if (o.status !== 'out') o.address = { district: o.address && o.address.district || '' };
+        if (o.status !== 'out') { o.address = { district: o.address && o.address.district || '' }; o.note = ''; delete o.voice; }
       });
     });
+    await deleteFiles('voice/' + user.sub + '/');
     return { deleted: true };
   },
 });

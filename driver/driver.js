@@ -60,7 +60,7 @@
     'No internet connection.': 'لا يوجد اتصال بالإنترنت.', 'Something went wrong. Please try again.': 'حدث خطأ. حاول مرة أخرى.',
     'Wrong username or password': 'اسم المستخدم أو كلمة المرور غير صحيحة', 'This order is not ready yet': 'هذا الطلب غير جاهز بعد',
     'Another driver already took this order': 'سائق آخر استلم هذا الطلب', 'That step is not possible now': 'هذه الخطوة غير ممكنة الآن', 'Order not found': 'الطلب غير موجود',
-    'Riyadh': 'الرياض', 'Tamveen Driver': 'سائق تموين',
+    'Customer voice note': 'ملاحظة صوتية من العميل', 'Riyadh': 'الرياض', 'Tamveen Driver': 'سائق تموين',
   };
   const isAr = () => S.lang === 'ar';
   const t = (s, v) => { let o = (isAr() && AR[s]) || s; if (v) for (const k in v) o = o.split('{' + k + '}').join(v[k]); return o; };
@@ -73,6 +73,8 @@
     back: ico('<path d="M15 18l-6-6 6-6"/>', 22, 2, 'class="flip"'), arrow: ico('<path d="M5 12h14M13 6l6 6-6 6"/>', 18, 2, 'class="flip"'),
     nav: ico('<path d="M3 11l18-8-8 18-2-8z"/>', 18), phone: ico('<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>', 18),
     store: ico('<path d="M4 10h16l-1-5H5zM5 10v9h14v-9M9 19v-5h6v5"/>', 18),
+    play: '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"/></svg>',
+    pause: '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>',
     bigpin: '<svg width="30" height="40" viewBox="0 0 40 52" aria-hidden="true"><path d="M20 0C9 0 0 9 0 20c0 14 20 32 20 32s20-18 20-32C40 9 31 0 20 0z" fill="#105448"/><circle cx="20" cy="19" r="7" fill="#fff"/></svg>',
   };
 
@@ -214,6 +216,7 @@
           <p class="addr">${esc([a.house, a.street].filter(Boolean).join(', '))}<br>${esc([a.district, a.city && t(a.city)].filter(Boolean).join(', '))}</p></div>
           <div class="collect ${cash ? '' : 'card'}"><small>${t(cash ? 'Collect cash' : 'Card on delivery')}</small><b>SAR ${money(amount(o))}</b></div></div>
         ${note ? `<div class="note"><b>${t('Note')}:</b> ${esc(note)}</div>` : ''}
+        ${o.voice ? `<button class="voice" data-a="voice" data-v="${esc(o.voice.id)}"><span class="vbtn play">${voiceOn === o.voice.id ? I.pause : I.play}</span><span class="vt"><b>${t('Customer voice note')}</b> · ${Math.floor(o.voice.secs / 60)}:${String(o.voice.secs % 60).padStart(2, '0')}</span></button>` : ''}
         <div class="two"><a class="btn outline sm" href="https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving" target="_blank" rel="noopener">${I.nav}${t('Navigate')}</a>
           <a class="btn outline sm ${tel ? '' : 'off'}" ${tel ? `href="tel:${esc(tel)}"` : 'aria-disabled="true"'}>${I.phone}${t('Call customer')}</a></div>
         <button class="btn" data-a="deliver" data-id="${esc(o.id)}">${t('Delivered')} ${I.arrow}</button>
@@ -236,6 +239,21 @@
       ${done.length ? `<ul class="dlist">${done.map(row).join('')}</ul>` : `<p class="empty">${t('Nothing delivered yet today.')}</p>`}
       <div class="dock"><button class="btn" data-a="handover" ${busy || ui.busy ? 'disabled' : ''}>${cash > 0 ? t('Cash handed over · go off duty') : t('Go off duty')}</button></div>
     </div>`;
+  }
+
+  // The customer's voice note, fetched with the driver's token and played in place.
+  let voiceOn = null, voiceAudio = null;
+  async function playVoice(id) {
+    if (voiceAudio && voiceOn === id) { voiceAudio.pause(); return; }
+    if (voiceAudio) voiceAudio.pause();
+    try {
+      const r = await fetch(API + '/voice?id=' + encodeURIComponent(id), { headers: { Authorization: 'Bearer ' + S.token } });
+      if (!r.ok) throw new Error();
+      voiceAudio = new Audio(URL.createObjectURL(await r.blob()));
+      voiceAudio.onplay = () => { voiceOn = id; render(); };
+      voiceAudio.onpause = voiceAudio.onended = () => { voiceOn = null; render(); };
+      await voiceAudio.play();
+    } catch (e) { toast(t('Something went wrong. Please try again.'), 'bad'); }
   }
 
   // ---------------------------------------------------------------- sheets
@@ -325,6 +343,7 @@
     tab: (el) => { ui.tab = el.dataset.v; render(); },
     home: () => go('home'), shift: () => go('shift'), open: (el) => go('job/' + el.dataset.id),
     signout: () => signOut(),
+    voice: (el) => playVoice(el.dataset.v),
     pickup: async (el) => {
       if (!S.onDuty) return toast(t('Go on duty first so the store and the customer can follow you.'), 'bad');
       try { await patch(el.dataset.id, 'pickup'); toast(t('Picked up. Drive safe.')); go('job/' + el.dataset.id); }

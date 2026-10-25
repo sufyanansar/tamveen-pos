@@ -1,7 +1,7 @@
 // /api/orders — online orders for the shop.
 //   GET    customer: their orders (with the agent's live position while one is on the way)
 //          staff: active orders and the last 2 days; driver: orders ready for pick-up and their own
-//   POST   customer: { lines: [{ pid, qty }], addressId, note, payment: 'cash' | 'card' }
+//   POST   customer: { lines: [{ pid, qty }], addressId, note, voice?: { id, secs } (from /api/voice), payment: 'cash' | 'card' }
 //   PATCH  { id, action, ... }
 //          staff:    prepare | ready | billed { invoiceId, total } | cancel { reason }
 //          driver:   pickup | delivered { collected } | problem { note } | unassign
@@ -65,12 +65,13 @@ export default api({
     const fee = subtotal >= SHOP.freeDeliveryFrom ? 0 : SHOP.deliveryFee;
     const vat = r2(lines.reduce((s, l) => { const g = l.price * l.qty, rate = vatRate(l.vat); return s + g - g / (1 + rate); }, 0) + fee - fee / 1.15);
     const payment = body.payment === 'card' ? 'card' : 'cash';
+    const v = body.voice && typeof body.voice.id === 'string' && body.voice.id.startsWith(user.sub + '/') ? { id: body.voice.id.slice(0, 160), secs: Math.round(Number(body.voice.secs) || 0) } : null;
     return updateDoc('orders', (doc) => {
       doc.seq += 1;
       const o = {
         id: 'APP-' + doc.seq, at: now(), channel: 'App', type: 'delivery', status: 'new',
         customerId: c.id, customer: { name: c.name, phone: c.phone || '' },
-        address: { ...addr }, note: String(body.note || '').slice(0, 300), payment,
+        address: { ...addr }, note: String(body.note || '').slice(0, 1000), ...(v ? { voice: v } : {}), payment,
         lines, subtotal, deliveryFee: fee, vat, total: r2(subtotal + fee),
         history: [{ s: 'new', at: now(), by: 'customer' }],
       };

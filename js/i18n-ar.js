@@ -16,6 +16,8 @@ window.I18N_AR = {
   'Delivery fee': 'رسوم التوصيل',
   'Open in maps': 'افتح في الخرائط',
   'Address notes': 'ملاحظات العنوان',
+  'Voice note': 'ملاحظة صوتية',
+  'Could not play the voice note': 'تعذر تشغيل الملاحظة الصوتية',
   'Note': 'ملاحظة',
   'Card on delivery': 'بطاقة عند الاستلام',
   'Cash on delivery': 'الدفع نقداً عند الاستلام',

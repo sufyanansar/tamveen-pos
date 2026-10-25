@@ -32,7 +32,11 @@
     'per piece': 'للحبة', 'per pack': 'للعبوة', 'per kg · approx.': 'للكيلو · وزن تقريبي', 'per bag': 'للكيس', 'per tray': 'للطبق', 'per box': 'للعلبة', 'per bottle': 'للعبوة', 'per tub': 'للعلبة',
     'VAT included': 'شامل الضريبة', 'Pack size': 'حجم العبوة', 'Add · {p} SAR': 'أضف · {p} ر.س', 'Basket': 'السلة', 'Your basket is empty.': 'سلتك فارغة.', 'Start shopping': 'ابدأ التسوق',
     'each': 'للحبة', '/ kg · approx. weight': '/ كجم · وزن تقريبي', 'Deliver to': 'التوصيل إلى', 'Change': 'تغيير', 'Add a delivery address': 'أضف عنوان التوصيل',
-    'Note for the driver': 'ملاحظة للمندوب', 'Gate code, landmark, call on arrival…': 'رمز البوابة، معلم قريب، اتصل عند الوصول…', 'Delivery time': 'وقت التوصيل', 'As soon as possible': 'في أقرب وقت',
+    'Notes for your order': 'ملاحظات على طلبك', 'Anything the shop or driver should know: a brand you prefer, a swap if something is out, the gate code…': 'أي شيء يحتاج المتجر أو المندوب معرفته: ماركة تفضلها، بديل إذا نفد صنف، رمز البوابة…',
+    'Record a voice note': 'سجّل ملاحظة صوتية', 'Talk to the shop in Arabic or English': 'تحدث مع المتجر بالعربي أو الإنجليزي', 'Recording…': 'جارٍ التسجيل…', 'Stop': 'إيقاف', 'Play': 'تشغيل',
+    'Voice note': 'ملاحظة صوتية', 'Delete voice note': 'حذف الملاحظة الصوتية', 'Voice notes are not supported on this device.': 'الملاحظات الصوتية غير مدعومة على هذا الجهاز.',
+    'Allow the microphone to record a voice note.': 'اسمح باستخدام الميكروفون لتسجيل ملاحظة صوتية.', 'The recording is too long': 'التسجيل طويل جداً', 'The recording is empty': 'التسجيل فارغ', 'This recording format is not supported': 'صيغة التسجيل غير مدعومة',
+    'Delivery time': 'وقت التوصيل', 'As soon as possible': 'في أقرب وقت',
     'Payment': 'الدفع', 'Cash on delivery': 'الدفع نقداً عند الاستلام', 'Pay the driver in cash': 'ادفع للمندوب نقداً', 'Card on delivery': 'بطاقة عند الاستلام', 'The driver brings a card terminal': 'يحضر المندوب جهاز الدفع',
     'Subtotal': 'المجموع الفرعي', 'Delivery fee': 'رسوم التوصيل', 'Free': 'مجاناً', 'VAT 15% (included)': 'ضريبة ١٥٪ (مشمولة)', 'Total': 'الإجمالي',
     'Weighed items are priced at billing, so the final total can change slightly.': 'تُسعّر الأصناف الموزونة عند الفوترة، لذا قد يتغير الإجمالي قليلاً.', 'Place order': 'تأكيد الطلب',
@@ -89,6 +93,10 @@
     close: ico('<path d="M6 6l12 12M18 6L6 18"/>', 20, 2),
     bigpin: '<svg width="40" height="52" viewBox="0 0 40 52" aria-hidden="true"><path d="M20 0C9 0 0 9 0 20c0 14 20 32 20 32s20-18 20-32C40 9 31 0 20 0z" fill="#105448"/><circle cx="20" cy="19" r="7" fill="#fff"/></svg>',
     store: ico('<path d="M4 10h16l-1-5H5zM5 10v9h14v-9M9 19v-5h6v5"/>', 18),
+    mic: ico('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>', 20),
+    play: '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"/></svg>',
+    pause: '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>',
+    stop: '<svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><rect fill="currentColor" x="4" y="4" width="16" height="16" rx="3"/></svg>',
   };
   const CAT_ICON = {
     dairy: '<path d="M8 3h8v3l2 3v12H6V9l2-3z"/><path d="M6 9h12M10 14h4"/>',
@@ -238,8 +246,10 @@
         <div class="blk"><div class="lbl">${t('Deliver to')}</div>
           ${a ? `<div class="box addr"><span class="pin">${I.pin}</span><span style="flex:1"><b>${esc(t(a.label || 'Home'))}</b><span>${esc([a.house, a.street].filter(Boolean).join(', '))}<br>${esc([a.district, a.city].filter(Boolean).join(', '))}</span></span><button class="linkbtn" data-a="pick-address">${t('Change')}</button></div>`
             : `<button class="box addr" data-a="pick-address" style="text-align:start;width:100%"><span class="pin">${I.pin}</span><span style="flex:1"><b>${t('Add a delivery address')}</b></span>${I.next}</button>`}</div>
-        <div class="blk"><div class="lbl">${t('Note for the driver')}</div><textarea class="in" data-in="note" rows="2" placeholder="${esc(t('Gate code, landmark, call on arrival…'))}">${esc(S.note)}</textarea></div>
         <div class="blk"><div class="lbl">${t('Delivery time')}</div><div class="radio on"><span class="o"></span><span><b>${t('As soon as possible')}</b></span></div></div>
+        <div class="blk"><div class="lbl">${t('Notes for your order')}</div>
+          <div class="notebox"><textarea class="in" data-in="note" rows="4" maxlength="1000" placeholder="${esc(t('Anything the shop or driver should know: a brand you prefer, a swap if something is out, the gate code…'))}">${esc(S.note)}</textarea>
+          ${voiceHtml()}</div></div>
         <div class="blk" role="radiogroup"><div class="lbl">${t('Payment')}</div>${radio('payment', 'cash', 'Cash on delivery', 'Pay the driver in cash')}${radio('payment', 'card', 'Card on delivery', 'The driver brings a card terminal')}</div>
         <div class="sum">
           <div><span>${t('Subtotal')}</span><span>${sar(T.subtotal)}</span></div>
@@ -583,21 +593,68 @@
   }
 
   // ---------------------------------------------------------------- actions
+  // ---------------------------------------------------------------- voice note at checkout
+  // The audio itself goes to the shop (no speech-to-text), so customers can talk in Arabic or English.
+  const MAX_SECS = 120;
+  const V = { state: 'idle', blob: null, url: null, secs: 0, rec: null, stream: null, timer: null, started: 0, audio: null };
+  const clock = (n) => Math.floor(n / 60) + ':' + String(Math.floor(n % 60)).padStart(2, '0');
+  function voiceHtml() {
+    if (V.state === 'rec') return `<div class="voice rec"><i class="rdot"></i><span id="vtime">${clock(V.secs)}</span><span class="vt">${t('Recording…')}</span><button class="vbtn stop" data-a="rec-stop">${I.stop}${t('Stop')}</button></div>`;
+    if (V.state === 'ready') return `<div class="voice"><button class="vbtn play" data-a="v-play" aria-label="${t('Play')}">${V.audio && !V.audio.paused ? I.pause : I.play}</button><span class="vt"><b>${t('Voice note')}</b> · ${clock(V.secs)}</span><button class="vbtn ghost" data-a="v-del" aria-label="${t('Delete voice note')}">${I.trash}</button></div>`;
+    return `<button class="voice idle" data-a="rec-start">${I.mic}<span class="vt"><b>${t('Record a voice note')}</b><small>${t('Talk to the shop in Arabic or English')}</small></span></button>`;
+  }
+  async function recStart() {
+    if (!navigator.mediaDevices || !window.MediaRecorder) return toast(t('Voice notes are not supported on this device.'), 'bad');
+    try { V.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
+    catch (e) { return toast(t('Allow the microphone to record a voice note.'), 'bad'); }
+    const type = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'].find((x) => MediaRecorder.isTypeSupported(x)) || '';
+    const chunks = [];
+    V.rec = new MediaRecorder(V.stream, type ? { mimeType: type, audioBitsPerSecond: 48000 } : undefined);
+    V.rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+    V.rec.onstop = () => {
+      V.stream.getTracks().forEach((tr) => tr.stop()); clearInterval(V.timer);
+      V.blob = new Blob(chunks, { type: (V.rec.mimeType || type || 'audio/webm').split(';')[0] });
+      V.secs = Math.max(1, Math.round((Date.now() - V.started) / 1000));
+      if (V.url) URL.revokeObjectURL(V.url);
+      V.url = URL.createObjectURL(V.blob); V.state = V.blob.size > 200 ? 'ready' : 'idle'; render();
+    };
+    V.rec.start(1000); V.started = Date.now(); V.secs = 0; V.state = 'rec'; render();
+    V.timer = setInterval(() => {
+      V.secs = (Date.now() - V.started) / 1000;
+      const el = $('#vtime'); if (el) el.textContent = clock(V.secs);
+      if (V.secs >= MAX_SECS) recStop();
+    }, 250);
+  }
+  function recStop() { if (V.rec && V.rec.state !== 'inactive') V.rec.stop(); }
+  function voiceClear() { if (V.audio) V.audio.pause(); if (V.url) URL.revokeObjectURL(V.url); Object.assign(V, { state: 'idle', blob: null, url: null, secs: 0, audio: null }); }
+  function voicePlay() {
+    if (!V.audio) { V.audio = new Audio(V.url); V.audio.onended = V.audio.onpause = V.audio.onplay = () => render(); }
+    if (V.audio.paused) V.audio.play(); else V.audio.pause();
+  }
+  async function uploadVoice() {
+    if (V.state !== 'ready' || !V.blob) return null;
+    const b64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(V.blob); });
+    return api('/voice', { method: 'POST', body: { audio: b64, type: V.blob.type, secs: Math.round(V.secs) } });
+  }
+
   async function placeOrder() {
     if (!S.token) return openSignin('place');
     if (!S.profile || !S.profile.name) return openSignin('place');
     const a = currentAddress(); if (!a) return go('address/new/place');
     const T = totals(); if (!T.lines.length || ui.busy) return;
+    if (V.state === 'rec') recStop();
     ui.busy = true; render();
     try {
-      const { order } = await api('/orders', { method: 'POST', body: { lines: T.lines.map((l) => ({ pid: l.p.id, qty: l.qty })), addressId: a.id, note: S.note, payment: S.payment } });
-      S.basket = {}; S.note = ''; persist();
+      const voice = await uploadVoice();
+      const { order } = await api('/orders', { method: 'POST', body: { lines: T.lines.map((l) => ({ pid: l.p.id, qty: l.qty })), addressId: a.id, note: S.note, voice, payment: S.payment } });
+      S.basket = {}; S.note = ''; persist(); voiceClear();
       ui.orders = [order].concat(ui.orders || []);
       ui.busy = false; toast(t('Order placed. We are on it.')); go('order/' + order.id);
     } catch (e) { ui.busy = false; toast(e.message, 'bad'); render(); loadCatalog(); }
   }
   const actions = {
     add: (el) => add(el.dataset.id), sub: (el) => sub(el.dataset.id),
+    'rec-start': () => recStart(), 'rec-stop': () => recStop(), 'v-play': () => voicePlay(), 'v-del': () => { voiceClear(); render(); },
     lang: () => { S.lang = isAr() ? 'en' : 'ar'; persist(); render(); },
     cat: (el) => { ui.cat = ui.cat === el.dataset.id ? null : el.dataset.id; render(); },
     go: (el) => go(el.dataset.to),

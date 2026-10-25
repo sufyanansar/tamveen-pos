@@ -708,13 +708,17 @@
   const onlineOn = () => (db.settings.storeId || ONLINE_STORE) === ONLINE_STORE;
   const API = /(^|\.)vercel\.app$|^localhost$|^127\./.test(location.hostname) ? '/api' : 'https://tamveen-pos.vercel.app/api';
   const net = { tok: null, tokFor: null, orders: [], seen: null, err: '', fleet: null, fleetAt: 0, tick: 0, busy: false };
-  async function apiCall(path, opts = {}, retried) {
+  async function staffToken() {
     const u = user(); if (!u) throw new Error('signed out');
     if (!net.tok || net.tokFor !== u.id) {
       const r = await fetch(API + '/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: 'staff', pin: u.pin }) });
       if (!r.ok) throw new Error('auth');
       net.tok = (await r.json()).token; net.tokFor = u.id;
     }
+    return net.tok;
+  }
+  async function apiCall(path, opts = {}, retried) {
+    await staffToken();
     const r = await fetch(API + path, { method: opts.method || 'GET', headers: { Authorization: 'Bearer ' + net.tok, 'Content-Type': 'application/json' }, body: opts.body ? JSON.stringify(opts.body) : undefined });
     if (r.status === 401 && !retried) { net.tok = null; return apiCall(path, opts, true); }
     const j = await r.json().catch(() => ({}));
@@ -778,7 +782,8 @@
         <div><b>${esc(o.customer.name)}</b>${o.customer.phone ? ` · <a href="tel:${esc(o.customer.phone)}">${esc(o.customer.phone)}</a>` : ''}</div>
         <div class="small">${esc(addrLine(a)) || '—'}${map ? ' · ' + map : ''}</div>
         ${a.notes ? `<div class="small muted">${t('Address notes')}: ${esc(a.notes)}</div>` : ''}
-        ${o.note ? `<div class="small muted">${t('Note')}: ${esc(o.note)}</div>` : ''}
+        ${o.note ? `<div class="small muted" style="white-space:pre-wrap">${t('Note')}: ${esc(o.note)}</div>` : ''}
+        ${o.voice ? `<div><button class="btn sm" data-a="app-voice" data-v="${esc(o.voice.id)}">${voice.on === o.voice.id ? '❚❚' : '▶'} ${t('Voice note')} · ${Math.floor(o.voice.secs / 60)}:${String(o.voice.secs % 60).padStart(2, '0')}</button></div>` : ''}
         <div class="small">${t(o.payment === 'card' ? 'Card on delivery' : 'Cash on delivery')} · ${t('Placed {t}', { t: fmtTime(o.at) })}${o.agentName ? ' · ' + t('Driver {n}', { n: esc(o.agentName) }) : ''}</div>
         ${o.cancelReason ? `<div class="small" style="color:var(--red)">${esc(t(o.cancelReason))}</div>` : ''}
       </div>
@@ -791,6 +796,20 @@
         ${inv ? `<a class="btn ghost" href="#/invoice/${inv.id}" data-a="close" style="text-decoration:none">${t('View invoice')}</a>` : ''}
         ${appOpen(o) ? `<button class="btn ghost" data-a="app-cancel" data-id="${esc(o.id)}">${t('Cancel order')}</button>` : ''}
         <button class="btn ghost" data-a="close">${t('Close')}</button></div>`;
+  }
+  // The customer's voice note: fetched with the staff token, played in place.
+  const voice = { on: null, audio: null };
+  async function playVoice(id) {
+    if (voice.audio && voice.on === id) { voice.audio.pause(); return; }
+    if (voice.audio) voice.audio.pause();
+    try {
+      const r = await fetch(API + '/voice?id=' + encodeURIComponent(id), { headers: { Authorization: 'Bearer ' + await staffToken() } });
+      if (!r.ok) throw new Error();
+      voice.audio = new Audio(URL.createObjectURL(await r.blob()));
+      voice.audio.onplay = () => { voice.on = id; if (ui.modal) renderModal(); };
+      voice.audio.onpause = voice.audio.onended = () => { voice.on = null; if (ui.modal) renderModal(); };
+      await voice.audio.play();
+    } catch (e) { toast(t('Could not play the voice note'), 'bad'); }
   }
   const CANCEL_REASONS = ['Items out of stock', 'Outside our delivery area', 'Customer asked to cancel', 'Shop is closed'];
   function appCancelBody(m) {
@@ -1893,6 +1912,7 @@
     'order-view': (el) => openModal({ kind: 'order', id: el.dataset.id }),
     'app-step': (el) => appAction(el.dataset.id, el.dataset.s),
     'app-cancel': (el) => openModal({ kind: 'app-cancel', id: el.dataset.id }),
+    'app-voice': (el) => playVoice(el.dataset.v),
     'app-cancel-ok': async (el) => { const o = await appAction(el.dataset.id, 'cancel', { reason: el.dataset.r }); if (o) { closeModal(); toast(t('Order {o} cancelled', { o: esc(o.id) })); } },
     'demo-app-order': () => demoAppOrder(),
     'demo-drive': () => demoDrive(),
