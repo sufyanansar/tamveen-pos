@@ -1,0 +1,10 @@
+{
+  "name": "Tamveen Driver",
+  "short_name": "Driver",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F3F8EC",
+  "theme_color": "#F3F8EC",
+  "icons": [{ "src": "../assets/logo.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
