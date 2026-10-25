@@ -168,12 +168,12 @@
   function shell(content, opts = {}) {
     const u = user();
     const r = route()[0];
-    const ordN = db.orders.filter((o) => o.status !== 'completed').length;
+    const ordN = db.orders.filter((o) => o.status !== 'completed').length + (onlineOn() ? net.orders.filter(appOpen).length : 0);
     const cashierNav = [
       ['checkout', 'Checkout'], ['orders', 'Orders', ordN, true], ['invoices', 'Invoices'], ['returns', 'Returns'], ['customers', 'Customers'], ['products', 'Products'], ['receive', 'Receive stock'],
     ];
     const mgrNav = [
-      ['checkout', 'Checkout'], ['orders', 'Orders', ordN, true], ['products', 'Products'], ['inventory', 'Inventory'], ['receive', 'Receive stock'], ['customers', 'Customers & Credit'], ['suppliers', 'Suppliers'], ['invoices', 'Invoices'], ['returns', 'Returns'], ['reports', 'Reports'], ['settings', 'Settings'],
+      ['checkout', 'Checkout'], ['orders', 'Orders', ordN, true], ...(onlineOn() ? [['delivery', 'Delivery map']] : []), ['products', 'Products'], ['inventory', 'Inventory'], ['receive', 'Receive stock'], ['customers', 'Customers & Credit'], ['suppliers', 'Suppliers'], ['invoices', 'Invoices'], ['returns', 'Returns'], ['reports', 'Reports'], ['settings', 'Settings'],
     ];
     ui.navList = isMgr() ? mgrNav : cashierNav;
     const nav = (isMgr() ? mgrNav : cashierNav).map(([k, label, badge, lime]) => {
@@ -514,6 +514,7 @@
     zatcaIssue(invoice);
     invoice.lines.forEach((l) => { const p = prod(l.pid); if (p) p.stock = r2(Math.max(0, p.stock - l.qty)); });
     if (ui.cart.orderId) { const o = db.orders.find((x) => x.id === ui.cart.orderId); if (o) { o.status = 'completed'; o.invoiceId = invoice.id; } }
+    if (ui.cart.appOrder) appAction(ui.cart.orderId, 'billed', { invoiceId: invoice.id, total: c.total });
     audit(`Sale ${invoice.id} · ${money(c.total)} SAR · ${P.method}`);
     ui.cart = { lines: [], customerId: null, orderId: null };
     ui.pay = null; ui.modal = null; renderModal();
@@ -667,17 +668,25 @@
   }
 
   // ---------------------------------------------------------------- views: orders
-  const ORDER_ST = { new: ['New', 'lime'], preparing: ['Preparing', 'amber'], ready: ['Ready', 'green'], completed: ['Completed', 'outline'] };
+  const ORDER_ST = { new: ['New', 'lime'], preparing: ['Preparing', 'amber'], ready: ['Ready', 'green'], completed: ['Completed', 'outline'], out: ['On the way', 'amber'], delivered: ['Delivered', 'outline'], cancelled: ['Cancelled', 'red'] };
   function viewOrders() {
-    const rows = db.orders.slice().sort((a, b) => (a.status === 'completed') - (b.status === 'completed')).map((o) => {
-      const st = ORDER_ST[o.status];
-      return `<div class="order-row"><b class="num">${o.id}</b><span class="tag ${st[1]}">${t(st[0])}</span><span class="spacer"></span>
-        <b class="num">${money(calc(o.lines).total)} SAR</b><button class="btn sm" data-a="order-view" data-id="${o.id}">${t('View details')}</button></div>`;
+    const items = db.orders.map((o) => ({ o, app: false, done: o.status === 'completed' }))
+      .concat(onlineOn() ? net.orders.map((o) => ({ o, app: true, done: !appOpen(o) && o.status !== 'out' })) : [])
+      .sort((a, b) => (a.done - b.done) || (Date.parse(b.o.at) - Date.parse(a.o.at)));
+    const rows = items.map(({ o, app }) => {
+      const st = ORDER_ST[o.status] || [o.status, ''];
+      const who = app ? `${esc(o.customer.name)}${o.address && o.address.district ? ' · ' + esc(o.address.district) : ''}` : esc(N(cust(o.customerId)) || t('Walk-in'));
+      const total = app ? (o.billedTotal != null ? o.billedTotal : o.total) : calc(o.lines).total;
+      return `<div class="order-row"><b class="num">${esc(o.id)}</b><span class="tag ${st[1]}">${t(st[0])}</span>${app ? `<span class="tag outline">${t('App')}</span>` : ''}
+        <span class="small muted">${who} · ${fmtTime(o.at)}</span><span class="spacer"></span>
+        <b class="num">${money(total)} SAR</b><button class="btn sm" data-a="order-view" data-id="${esc(o.id)}">${t('View details')}</button></div>`;
     }).join('');
-    return `<div class="page-h"><div><h1>${t('Orders')}</h1></div></div><div class="order-list">${rows}</div>`;
+    return `<div class="page-h"><div><h1>${t('Orders')}</h1>${onlineOn() ? `<div class="muted small">${t('App orders update by themselves.')}</div>` : ''}</div></div>
+      ${onlineOn() && net.err ? `<div class="banner warn" style="border-radius:12px;margin-bottom:12px;max-width:760px">${I.warn}<span>${t(net.err)}</span></div>` : ''}
+      <div class="order-list">${rows}</div>`;
   }
   function orderBody(m) {
-    const o = db.orders.find((x) => x.id === m.id); if (!o) return '';
+    const o = db.orders.find((x) => x.id === m.id); if (!o) return appOrder(m.id) ? appOrderBody(appOrder(m.id)) : '';
     const c = calc(o.lines), cu = cust(o.customerId), st = ORDER_ST[o.status];
     const next = { new: ['prep', 'Prepare'], preparing: ['ready', 'Ready'] }[o.status];
     const lines = o.lines.map((l) => `<tr><td>${esc(N(l))}</td><td class="r num">${qtyFmt(l.qty, l.weighted)}</td><td class="r num"><b>${money(lineTotal(l))}</b></td></tr>`).join('');
@@ -691,6 +700,204 @@
         <button class="btn ghost" data-a="close">${t('Close')}</button></div>`;
   }
 
+
+  // ---------------------------------------------------------------- online orders (customer app) · this shop only
+  // Orders placed in the customer app arrive through the shared order service (api/). Online ordering is
+  // switched on only for the owner's own shop, not for other shops using the POS.
+  const ONLINE_STORE = 'B1-RIYADH';
+  const onlineOn = () => (db.settings.storeId || ONLINE_STORE) === ONLINE_STORE;
+  const API = /(^|\.)vercel\.app$|^localhost$|^127\./.test(location.hostname) ? '/api' : 'https://tamveen-pos.vercel.app/api';
+  const net = { tok: null, tokFor: null, orders: [], seen: null, err: '', fleet: null, fleetAt: 0, tick: 0, busy: false };
+  async function apiCall(path, opts = {}, retried) {
+    const u = user(); if (!u) throw new Error('signed out');
+    if (!net.tok || net.tokFor !== u.id) {
+      const r = await fetch(API + '/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: 'staff', pin: u.pin }) });
+      if (!r.ok) throw new Error('auth');
+      net.tok = (await r.json()).token; net.tokFor = u.id;
+    }
+    const r = await fetch(API + path, { method: opts.method || 'GET', headers: { Authorization: 'Bearer ' + net.tok, 'Content-Type': 'application/json' }, body: opts.body ? JSON.stringify(opts.body) : undefined });
+    if (r.status === 401 && !retried) { net.tok = null; return apiCall(path, opts, true); }
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw Object.assign(new Error(j.error || 'Request failed'), { shown: !!j.error });
+    return j;
+  }
+  const appOrder = (id) => net.orders.find((o) => o.id === id);
+  const appOpen = (o) => ['new', 'preparing', 'ready'].includes(o.status);
+  function chime() {
+    try {
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.18].forEach((d, i) => { const o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = i ? 1320 : 880; o.connect(g); g.connect(ac.destination); g.gain.setValueAtTime(0.18, ac.currentTime + d); g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + d + 0.25); o.start(ac.currentTime + d); o.stop(ac.currentTime + d + 0.26); });
+    } catch (e) { /* no audio */ }
+  }
+  // The POS publishes its products whenever they change here (a price, a new product, stock after a sale).
+  function catalogSig() { return JSON.stringify([db.categories.map((c) => [c.id, c.en, c.ar]), db.products.map((p) => [p.id, p.en, p.ar, p.cat, p.price, p.unit, p.weighted, p.vat, p.stock, p.active, p.online])]); }
+  async function publishCatalog() {
+    const sig = catalogSig();
+    if (db.catalogSig == null) { db.catalogSig = sig; save(); return; }
+    if (sig === db.catalogSig) return;
+    await apiCall('/catalog', { method: 'PUT', body: { categories: db.categories, products: db.products } });
+    db.catalogSig = sig; save();
+  }
+  async function pollOnline(force) {
+    if (!onlineOn() || !user() || net.busy || document.hidden) return;
+    net.busy = true; net.tick++;
+    const r = route()[0];
+    try {
+      if (force || net.tick % 2 === 1) {
+        const before = JSON.stringify(net.orders);
+        const { orders } = await apiCall('/orders');
+        const fresh = net.seen ? orders.filter((o) => o.status === 'new' && !net.seen.has(o.id)) : [];
+        net.seen = new Set(orders.map((o) => o.id)); net.orders = orders; net.err = '';
+        if (fresh.length) { chime(); toast(t('New app order {o}', { o: `<b>${esc(fresh[0].id)}</b> · ${esc(fresh[0].customer.name)}` })); }
+        if (JSON.stringify(orders) !== before) {
+          if (ui.modal && ui.modal.kind === 'order' && appOrder(ui.modal.id)) renderModal();
+          if (r === 'orders' || fresh.length) render();
+        }
+        publishCatalog().catch(() => {});
+      }
+      if (r === 'delivery') { net.fleet = await apiCall('/fleet'); net.fleetAt = Date.now(); render(); }
+    } catch (e) { net.err = 'Online orders are not reachable right now.'; if (r === 'orders' || r === 'delivery') render(); }
+    net.busy = false;
+  }
+  setInterval(pollOnline, 5000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) pollOnline(true); });
+  async function appAction(id, action, extra = {}) {
+    try { const { order } = await apiCall('/orders', { method: 'PATCH', body: Object.assign({ id, action }, extra) }); const i = net.orders.findIndex((o) => o.id === id); if (i >= 0) net.orders[i] = order; render(); if (ui.modal && ui.modal.kind === 'order') renderModal(); return order; }
+    catch (e) { toast(esc(e.shown ? e.message : t('Online orders are not reachable right now.')), 'bad'); return null; }
+  }
+  const addrLine = (a) => [a.house, a.street, a.district, a.city].filter(Boolean).join(', ');
+  const FEE_LINE = (fee) => ({ pid: 'delivery-fee', en: 'Delivery fee', ar: 'رسوم التوصيل', unit: 'service', price: fee, qty: 1, vat: 'standard', weighted: false, discount: 0, reason: '' });
+  function appOrderBody(o) {
+    const st = ORDER_ST[o.status] || [o.status, ''];
+    const lines = o.lines.map((l) => `<tr><td>${esc(N(l))}</td><td class="r num">${qtyFmt(l.qty, l.weighted)}</td><td class="r num"><b>${money(lineTotal(l))}</b></td></tr>`).join('')
+      + (o.deliveryFee ? `<tr><td>${t('Delivery fee')}</td><td class="r num">1</td><td class="r num"><b>${money(o.deliveryFee)}</b></td></tr>` : '');
+    const a = o.address || {}, inv = o.invoiceId && db.invoices.find((i) => i.id === o.invoiceId);
+    const map = a.lat != null ? `<a href="https://www.google.com/maps?q=${a.lat},${a.lng}" target="_blank" rel="noopener">${t('Open in maps')}</a>` : '';
+    return `<div class="between"><h3>${esc(o.id)}</h3><span class="row" style="gap:6px"><span class="tag outline">${t('App')}</span><span class="tag ${st[1]}">${t(st[0])}</span></span></div>
+      <div class="box" style="display:grid;gap:4px">
+        <div><b>${esc(o.customer.name)}</b>${o.customer.phone ? ` · <a href="tel:${esc(o.customer.phone)}">${esc(o.customer.phone)}</a>` : ''}</div>
+        <div class="small">${esc(addrLine(a)) || '—'}${map ? ' · ' + map : ''}</div>
+        ${a.notes ? `<div class="small muted">${t('Address notes')}: ${esc(a.notes)}</div>` : ''}
+        ${o.note ? `<div class="small muted">${t('Note')}: ${esc(o.note)}</div>` : ''}
+        <div class="small">${t(o.payment === 'card' ? 'Card on delivery' : 'Cash on delivery')} · ${t('Placed {t}', { t: fmtTime(o.at) })}${o.agentName ? ' · ' + t('Driver {n}', { n: esc(o.agentName) }) : ''}</div>
+        ${o.cancelReason ? `<div class="small" style="color:var(--red)">${esc(t(o.cancelReason))}</div>` : ''}
+      </div>
+      <table class="tbl"><thead><tr><th>${t('Product')}</th><th class="r">${t('Qty')}</th><th class="r">${t('Total')}</th></tr></thead><tbody>${lines}</tbody></table>
+      <div class="between"><b>${t('Total')}</b><b class="num" style="font-size:20px">${money(o.billedTotal != null ? o.billedTotal : o.total)} SAR</b></div>
+      ${o.invoiceId && o.status === 'ready' ? `<div class="small muted">${t('Billed. Waiting for a driver to pick it up.')}</div>` : ''}
+      <div class="btns" style="grid-template-columns:repeat(auto-fit,minmax(90px,1fr))">
+        ${o.status === 'new' ? `<button class="btn" data-a="app-step" data-id="${esc(o.id)}" data-s="prepare">${t('Prepare')}</button>` : ''}
+        ${appOpen(o) && !o.invoiceId ? `<button class="btn primary" data-a="order-load" data-id="${esc(o.id)}">${t('Checkout')}</button>` : ''}
+        ${inv ? `<a class="btn ghost" href="#/invoice/${inv.id}" data-a="close" style="text-decoration:none">${t('View invoice')}</a>` : ''}
+        ${appOpen(o) ? `<button class="btn ghost" data-a="app-cancel" data-id="${esc(o.id)}">${t('Cancel order')}</button>` : ''}
+        <button class="btn ghost" data-a="close">${t('Close')}</button></div>`;
+  }
+  const CANCEL_REASONS = ['Items out of stock', 'Outside our delivery area', 'Customer asked to cancel', 'Shop is closed'];
+  function appCancelBody(m) {
+    return `<h3>${t('Cancel order {o}?', { o: esc(m.id) })}</h3><p class="muted">${t('The customer sees the reason in the app.')}</p>
+      <div style="display:grid;gap:8px">${CANCEL_REASONS.map((r) => `<button class="btn" data-a="app-cancel-ok" data-id="${esc(m.id)}" data-r="${esc(r)}">${t(r)}</button>`).join('')}</div>
+      <div class="btns one"><button class="btn ghost" data-a="order-view" data-id="${esc(m.id)}">${t('Back')}</button></div>`;
+  }
+
+  // Demo controls: an order as if placed in the customer app, and a driver who picks up a billed order and drives it there.
+  const sim = { on: false };
+  const DEMO_HOMES = [
+    { label: 'Home', house: 'Villa 8', street: 'Street 12', district: 'Al-Malqa', lat: 24.8045, lng: 46.6245 },
+    { label: 'Home', house: 'Building 21, flat 4', street: 'Prince Sultan Rd', district: 'Al-Muhammadiyah', lat: 24.7349, lng: 46.6526 },
+    { label: 'Work', house: 'Tower B, floor 3', street: 'Olaya St', district: 'Al-Olaya', lat: 24.7111, lng: 46.6744 },
+  ];
+  async function apiAs(tok, path, method, body) {
+    const r = await fetch(API + path, { method, headers: { 'Content-Type': 'application/json', ...(tok ? { Authorization: 'Bearer ' + tok } : {}) }, body: body ? JSON.stringify(body) : undefined });
+    const j = await r.json().catch(() => ({})); if (!r.ok) throw Object.assign(new Error(j.error || 'failed'), { shown: !!j.error }); return j;
+  }
+  async function demoAppOrder() {
+    try {
+      const i = Math.floor(Math.random() * DEMO_HOMES.length), names = ['Sara Al-Qahtani', 'Reem Al-Dosari', 'Faisal Al-Shehri'];
+      const { token } = await apiAs(null, '/auth', 'POST', { provider: i % 2 ? 'apple' : 'google', demo: true, name: names[i], email: 'demo' + i + '@example.com' });
+      await apiAs(token, '/me', 'PUT', { phone: '+966 50 ' + (1000000 + i * 1234567).toString().slice(0, 7), addresses: [DEMO_HOMES[i]] });
+      const pick = db.products.filter((p) => p.active && p.stock > 2).sort(() => Math.random() - 0.5).slice(0, 4);
+      await apiAs(token, '/orders', 'POST', { lines: pick.map((p) => ({ pid: p.id, qty: p.weighted ? 1.5 : 1 + Math.floor(Math.random() * 3) })), payment: i % 2 ? 'card' : 'cash', note: i === 0 ? 'Please ring the bell' : '' });
+      pollOnline(true);
+    } catch (e) { toast(esc(e.shown ? e.message : t('Online orders are not reachable right now.')), 'bad'); }
+  }
+  async function demoDrive() {
+    const o = net.orders.find((x) => x.status === 'ready' && !x.agentId && x.address && x.address.lat != null);
+    if (!o) return toast(t('Bill an app order first, then a driver can pick it up.'), 'warn');
+    sim.on = true; ui.demoOpen = false; render();
+    try {
+      const { token } = await apiAs(null, '/auth', 'POST', { role: 'driver', username: 'omar', password: '3333' });
+      const shop = { lat: 24.6939, lng: 46.6853 }, to = o.address, steps = 30;
+      await apiAs(token, '/fleet', 'POST', { onDuty: true, lat: shop.lat, lng: shop.lng });
+      await apiAs(token, '/orders', 'PATCH', { id: o.id, action: 'pickup' });
+      toast(t('{n} picked up {o}', { n: 'Omar', o: o.id })); go('delivery');
+      for (let k = 1; k <= steps; k++) {
+        await new Promise((r) => setTimeout(r, 4000));
+        const f = k / steps, wob = Math.sin(f * Math.PI) * 0.004;
+        await apiAs(token, '/fleet', 'POST', { onDuty: true, lat: shop.lat + (to.lat - shop.lat) * f + wob, lng: shop.lng + (to.lng - shop.lng) * f - wob });
+      }
+      await apiAs(token, '/orders', 'PATCH', { id: o.id, action: 'delivered', collected: o.payment === 'cash' ? (o.billedTotal || o.total) : null });
+      toast(t('{o} delivered', { o: o.id }));
+      await new Promise((r) => setTimeout(r, 4000));
+      await apiAs(token, '/fleet', 'POST', { onDuty: false });
+    } catch (e) { toast(esc(e.shown ? e.message : t('Online orders are not reachable right now.')), 'bad'); }
+    sim.on = false; pollOnline(true);
+  }
+
+  // ---------------------------------------------------------------- views: delivery map (manager)
+  const AGENT_ST = { delivering: ['On a delivery', '#C58A00'], returning: ['Returning', '#2F6FDE'], store: ['At the store', '#1D6947'], nosignal: ['No signal', '#A3231B'], off: ['Off duty', '#8A9A94'] };
+  const ago = (iso) => { if (!iso) return '—'; const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000)); return s < 60 ? t('{n} s ago', { n: s }) : s < 3600 ? t('{n} min ago', { n: Math.round(s / 60) }) : fmtTime(iso); };
+  function viewDelivery() {
+    const F = net.fleet, agents = F ? F.agents.filter((a) => a.onDuty) : [];
+    const list = agents.length ? agents.map((a) => { const st = AGENT_ST[a.status]; return `<button class="fleet-agent" data-a="fleet-focus" data-id="${a.id}">
+        <span class="dot" style="background:${st[1]}"></span><span><b>${esc(isAr() ? a.nameAr || a.name : a.name)}</b><small>${t(st[0])}${a.carrying.length ? ' · ' + a.carrying.join(', ') : ''}</small></span><small class="muted">${ago(a.at)}</small></button>`; }).join('')
+      : `<div class="muted small" style="padding:12px">${F ? t('No delivery agents on duty right now.') : t('Loading…')}</div>`;
+    return `<div class="page-h"><div><h1>${t('Delivery map')}</h1><div class="muted small">${t('{n} on duty', { n: agents.length })}${net.fleetAt ? ' · ' + t('Updated {t}', { t: ago(new Date(net.fleetAt).toISOString()) }) : ''}</div></div></div>
+      ${net.err ? `<div class="banner warn" style="border-radius:12px;margin-bottom:12px">${I.warn}<span>${t(net.err)}</span></div>` : ''}
+      <div class="fleet"><div class="fleet-map" id="fleet-slot"></div><div class="fleet-list">${list}</div></div>`;
+  }
+  const fleetMap = { el: null, map: null, markers: {}, loading: null, focus: null };
+  function loadLeaflet() {
+    if (window.L) return Promise.resolve();
+    if (fleetMap.loading) return fleetMap.loading;
+    const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'js/leaflet/leaflet.css'; document.head.appendChild(css);
+    return (fleetMap.loading = new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'js/leaflet/leaflet.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); }));
+  }
+  function mountFleetMap() {
+    const slot = $('#fleet-slot'); if (!slot) return;
+    if (!fleetMap.el) { fleetMap.el = document.createElement('div'); fleetMap.el.className = 'fleet-map-inner'; }
+    slot.appendChild(fleetMap.el);
+    loadLeaflet().then(() => {
+      const F = net.fleet;
+      if (!fleetMap.map) {
+        const shop = (F && F.shop) || { lat: 24.6939, lng: 46.6853 };
+        fleetMap.map = L.map(fleetMap.el, { zoomControl: true }).setView([shop.lat, shop.lng], 13);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19, subdomains: 'abcd', attribution: '&copy; OpenStreetMap &copy; CARTO' }).addTo(fleetMap.map);
+        L.marker([shop.lat, shop.lng], { icon: L.divIcon({ className: 'pin-shop', html: logo(30), iconSize: [36, 36], iconAnchor: [18, 18] }) }).addTo(fleetMap.map).bindTooltip(esc(isAr() ? db.settings.shopAr : db.settings.shopEn));
+      }
+      fleetMap.map.invalidateSize();
+      if (!F) return;
+      const seen = new Set();
+      F.agents.filter((a) => a.onDuty && a.lat != null).forEach((a) => {
+        const st = AGENT_ST[a.status], k = 'a' + a.id; seen.add(k);
+        const html = `<span class="pin-agent" style="--c:${st[1]}"><b>${esc((isAr() ? a.nameAr || a.name : a.name))}</b></span>`;
+        const icon = L.divIcon({ className: '', html, iconSize: [0, 0], iconAnchor: [0, 0] });
+        if (fleetMap.markers[k]) fleetMap.markers[k].setLatLng([a.lat, a.lng]).setIcon(icon); else fleetMap.markers[k] = L.marker([a.lat, a.lng], { icon }).addTo(fleetMap.map);
+      });
+      F.deliveries.filter((d) => d.lat != null).forEach((d) => {
+        const k = 'o' + d.id; seen.add(k);
+        if (!fleetMap.markers[k]) fleetMap.markers[k] = L.circleMarker([d.lat, d.lng], { radius: 7, color: '#105448', weight: 2, fillColor: '#AADD54', fillOpacity: 1 }).addTo(fleetMap.map).bindTooltip(`${d.id} · ${esc(d.customer)}${d.district ? ' · ' + esc(d.district) : ''}`);
+        const ag = F.agents.find((a) => a.id === d.agentId), lk = 'l' + d.id;
+        if (ag && ag.lat != null) { seen.add(lk); const pts = [[ag.lat, ag.lng], [d.lat, d.lng]]; if (fleetMap.markers[lk]) fleetMap.markers[lk].setLatLngs(pts); else fleetMap.markers[lk] = L.polyline(pts, { color: '#105448', weight: 2, dashArray: '4 6', opacity: 0.7 }).addTo(fleetMap.map); }
+      });
+      Object.keys(fleetMap.markers).forEach((k) => { if (!seen.has(k)) { fleetMap.markers[k].remove(); delete fleetMap.markers[k]; } });
+      if (!fleetMap.fitted) {
+        const pts = [[F.shop.lat, F.shop.lng]].concat(F.agents.filter((a) => a.onDuty && a.lat != null).map((a) => [a.lat, a.lng]), F.deliveries.filter((d) => d.lat != null).map((d) => [d.lat, d.lng]));
+        if (pts.length > 1) fleetMap.map.fitBounds(pts, { padding: [48, 48], maxZoom: 15 });
+        fleetMap.fitted = true;
+      }
+      if (fleetMap.focus) { const a = F.agents.find((x) => x.id === fleetMap.focus); if (a && a.lat != null) fleetMap.map.setView([a.lat, a.lng], 15); fleetMap.focus = null; }
+    }).catch(() => {});
+  }
 
   // ---------------------------------------------------------------- views: invoices
   function invStatusTag(i) {
@@ -1440,6 +1647,7 @@
           <div class="menu-row"><button class="btn sm ghost" data-a="close-shift">${t('Close shift')}</button><button class="btn sm ghost" data-a="switch-user">${t('Switch user')}</button></div>`;
       }
       case 'order': return orderBody(m);
+      case 'app-cancel': return appCancelBody(m);
       case 'info': return `<h3>${t(m.title)}</h3><p>${t(m.body)}</p><div class="btns one"><button class="btn primary" data-a="close">${t('OK')}</button></div>`;
     }
     return '';
@@ -1451,6 +1659,8 @@
     return `${ui.demoOpen ? `<div class="demo-panel"><div class="between"><h4>${t('Simulate shop conditions')}</h4><button class="linkbtn" data-a="demo-toggle">${t('Close')}</button></div>
         ${tg('server', 'Shop server connected')}${tg('internet', 'Internet online')}${tg('printer', 'Printer has paper')}${tg('terminal', 'Card terminal replies')}
         <button class="btn sm ghost" data-a="demo-price">${t('Change a shelf price (Sugar +0.25)')}</button>
+        ${onlineOn() ? `<button class="btn sm ghost" data-a="demo-app-order">${t('Send a test app order')}</button>
+        <button class="btn sm ghost" data-a="demo-drive" ${sim.on ? 'disabled' : ''}>${t(sim.on ? 'Driver on the way…' : 'Simulate a driver delivering')}</button>` : ''}
         <button class="btn sm ghost" data-a="reset">${t('Reset demo data')}</button>
         <div class="small muted">${t('PINs · Cashier 1111 · Manager 1234 · Owner 9999')}</div></div>` : ''}`;
   }
@@ -1489,11 +1699,12 @@
       const views = {
         checkout: viewCheckout, pay: viewPay, done: () => viewDone(a), orders: viewOrders, invoices: viewInvoices, invoice: () => viewInvoice(a),
         returns: viewReturns, customers: viewCustomers, customer: () => viewCustomer(a), products: viewProducts, product: () => viewProduct(a),
-        inventory: viewInventory, receive: viewReceive, suppliers: viewSuppliers, barcodes: viewBarcodes, reports: viewReports, settings: viewSettings,
+        inventory: viewInventory, receive: viewReceive, delivery: () => (isMgr() && onlineOn() ? viewDelivery() : viewOrders()), suppliers: viewSuppliers, barcodes: viewBarcodes, reports: viewReports, settings: viewSettings,
       };
       app.innerHTML = shell((views[r] || viewCheckout)());
       if (ui.modal && ui.modal.kind === 'line') { if (ui.cart.lines[ui.sel]) renderModal(); else closeModal(); }
       $('#demo-root').innerHTML = demoPanel();
+      if (r === 'delivery') mountFleetMap();
     }
     if (focusKey) {
       const el = (ui.modal && document.querySelector(`#modal-root [data-k="${focusKey}"]`)) || document.querySelector(`[data-k="${focusKey}"]`);
@@ -1515,6 +1726,7 @@
     save();
     if (!location.hash || location.hash === '#/') location.hash = '#/checkout';
     render();
+    pollOnline(true);
   }
   function pinEntered(pin) {
     const m = ui.modal || ui.signPin;
@@ -1679,8 +1891,20 @@
       save(); toast(t('{n} products updated', { n })); go('inventory');
     },
     'order-view': (el) => openModal({ kind: 'order', id: el.dataset.id }),
+    'app-step': (el) => appAction(el.dataset.id, el.dataset.s),
+    'app-cancel': (el) => openModal({ kind: 'app-cancel', id: el.dataset.id }),
+    'app-cancel-ok': async (el) => { const o = await appAction(el.dataset.id, 'cancel', { reason: el.dataset.r }); if (o) { closeModal(); toast(t('Order {o} cancelled', { o: esc(o.id) })); } },
+    'demo-app-order': () => demoAppOrder(),
+    'demo-drive': () => demoDrive(),
+    'fleet-focus': (el) => { fleetMap.focus = el.dataset.id; mountFleetMap(); },
     'order-step': (el) => { const o = db.orders.find((x) => x.id === el.dataset.id); o.status = el.dataset.s === 'prep' ? 'preparing' : 'ready'; save(); render(); if (ui.modal) renderModal(); },
     'order-load': (el) => {
+      const ao = !db.orders.some((x) => x.id === el.dataset.id) && appOrder(el.dataset.id);
+      if (ao) {
+        ui.cart = { lines: ao.lines.map((l) => Object.assign({}, l)).concat(ao.deliveryFee ? [FEE_LINE(ao.deliveryFee)] : []), customerId: null, orderId: ao.id, appOrder: true };
+        if (ao.status === 'new') appAction(ao.id, 'prepare');
+        ui.modal = null; renderModal(); save(); go('checkout'); return;
+      }
       const o = db.orders.find((x) => x.id === el.dataset.id);
       ui.cart = { lines: o.lines.map((l) => Object.assign({ weighted: prod(l.pid) && prod(l.pid).weighted }, l)), customerId: o.customerId, orderId: o.id };
       ui.modal = null; renderModal(); save(); go('checkout');
@@ -1884,4 +2108,5 @@
 
   render();
   zatcaDetect();
+  pollOnline(true);
 })();

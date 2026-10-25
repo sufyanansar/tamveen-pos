@@ -28,6 +28,24 @@ A clickable proof of concept of the Tamveen (تموين) grocery point of sale, 
 
 Everything is in English and Arabic (right-to-left), switchable from the top bar.
 
+## Online orders (customer app, delivery agents, manager map)
+
+Online ordering is on only for the owner's shop (store ID `B1-RIYADH`). The pieces share a small API in `api/` (Vercel functions, data in a private Vercel Blob store):
+
+| Endpoint | Used by | What it does |
+| --- | --- | --- |
+| `POST /api/auth` | all | Customer sign-in with Apple or Google (demo mode until client IDs are set), POS staff by PIN, drivers by username and password |
+| `GET/PUT/DELETE /api/me` | customer app | Name, phone, saved addresses; delete account |
+| `GET/PUT /api/catalog` | customer app / POS | Products and prices; the POS publishes changes |
+| `GET/POST/PATCH /api/orders` | all | Place an order; Prepare, bill, cancel; driver pick-up and delivered |
+| `GET/POST /api/fleet` | driver app / POS | Driver location while on duty; the manager's delivery map |
+
+In the POS, **Orders** lists app orders next to WhatsApp and phone orders (a chime on each new one); **Checkout** bills it and marks it ready for a driver. **Delivery map** (manager and owner) shows every on-duty driver. To try it without the apps, open **Demo controls** and use *Send a test app order*, bill it, then *Simulate a driver delivering*.
+
+Demo drivers: `faisal` / `2222`, `omar` / `3333`, `yousef` / `4444`.
+
+Environment variables: `BLOB_READ_WRITE_TOKEN` (set by Vercel), `GOOGLE_CLIENT_IDS` and `APPLE_CLIENT_IDS` (comma-separated, turns on real sign-in), `SESSION_SECRET` (optional). Run locally with `npm install && npm run dev` (data kept in memory).
+
 ## Run locally
 
 Any static file server works, for example:
@@ -51,6 +69,8 @@ js/docscan.js     guided camera for delivery documents (A4 page or long receipt 
 js/zxing-wasm-reader.js, js/zxing_reader.wasm  ZXing-C++ as WebAssembly (zxing-wasm 3.1.4, MIT), loaded only when needed
 js/zxing.min.js   ZXing barcode reader (@zxing/library 0.21.3, Apache-2.0), loaded only when needed
 js/qrcode.js      QR code generator (qrcode-generator 1.4.4, MIT)
+js/leaflet/       Leaflet 1.9.4 maps (BSD-2-Clause), loaded only on the delivery map
+api/              online-order API (Vercel functions)
 assets/           Sora font, Vision 2030 artwork, flag animation
 server/           POS machine service: signs invoices and reports them to ZATCA (Node, no dependencies)
 docs/zatca.md     how ZATCA e-invoicing works here and how to set up a POS machine

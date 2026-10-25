@@ -1,0 +1,13 @@
+{
+  "name": "tamveen-pos-web",
+  "private": true,
+  "type": "module",
+  "description": "Tamveen POS web demo plus the online-order API (api/) that the customer app, delivery agent app and POS share.",
+  "scripts": {
+    "dev": "node tools/dev-server.js",
+    "test": "node --test api/_lib/*.test.js"
+  },
+  "dependencies": {
+    "@vercel/blob": "2.8.2"
+  }
+}
