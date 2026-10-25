@@ -1,0 +1,17 @@
+@font-face{font-family:'Sora';src:url('../assets/sora.woff2') format('woff2');font-weight:100 800;font-display:swap}
+:root{--g:#105448;--bg:#F3F8EC;--muted:#536B62;--line:#E1EAE6;--red:#A3361F}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--g);font:15px/1.6 'Sora','IBM Plex Sans Arabic',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+main{max-width:720px;margin:0 auto;padding:calc(24px + env(safe-area-inset-top,0px)) 16px 48px}
+header{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;margin-bottom:8px}
+header img{width:34px;height:34px}
+h1{font-size:26px;line-height:1.25;margin:18px 0 4px}
+h2{font-size:17px;margin:28px 0 6px}
+p,li{color:#2c4a40}
+.muted{color:var(--muted);font-size:13px}
+a{color:var(--g);font-weight:600}
+.ar{direction:rtl;text-align:right;font-family:'IBM Plex Sans Arabic','Sora',sans-serif;border-top:1px solid var(--line);margin-top:40px;padding-top:8px}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;margin:16px 0}
+button{font:inherit;font-weight:600;border:0;border-radius:999px;padding:12px 20px;background:var(--red);color:#fff;cursor:pointer}
+button[disabled]{opacity:.5}
+.back{display:inline-block;margin-top:24px}

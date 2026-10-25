@@ -95,6 +95,7 @@ export function slimProduct(p) {
     id: String(p.id), en: String(p.en || ''), ar: String(p.ar || ''), cat: String(p.cat || ''), brand: String(p.brand || ''),
     price: Number(p.price) || 0, unit: String(p.unit || 'piece'), weighted: !!p.weighted, vat: p.vat === 'zero' || p.vat === 'exempt' ? p.vat : 'standard',
     stock: Number(p.stock) || 0, active: p.active !== false && p.online !== false, img: p.img ? String(p.img) : '',
+    packs: Array.isArray(p.packs) ? p.packs.slice(0, 6).map((k) => ({ name: String(k.name || ''), qty: Number(k.qty) || 1 })) : [],
   };
 }
 

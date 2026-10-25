@@ -1,0 +1,10 @@
+{
+  "name": "تَمْوِين",
+  "short_name": "تَمْوِين",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F3F8EC",
+  "theme_color": "#105448",
+  "icons": [{ "src": "../assets/logo.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
