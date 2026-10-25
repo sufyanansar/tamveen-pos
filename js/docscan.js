@@ -22,26 +22,35 @@
     return el;
   }
 
+  const ICON = {
+    gallery: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 17l-5-5-9 8"/></svg>',
+    torch: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>',
+    auto: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 16l3.5-8 3.5 8M9.8 13h4.4"/></svg>',
+    retake: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4h4"/></svg>',
+  };
+
+  // Everything around the camera is kept small: one thin row on top, one row of icons below.
   function view() {
     return `<div class="cam-overlay ds" role="dialog" aria-modal="true" aria-label="${esc(t('Scan invoice'))}">
-      <div class="cam-top"><div><b id="ds-title"></b><div class="small" id="ds-sub"></div></div>
-        <button class="cam-x" data-ds="close" aria-label="${esc(t('Close'))}">✕</button></div>
-      <div class="ds-kinds" role="tablist">
-        <button data-ds="kind" data-k="a4" role="tab">${esc(t('Full page'))}</button>
-        <button data-ds="kind" data-k="receipt" role="tab">${esc(t('Long receipt'))}</button></div>
+      <div class="ds-top"><button class="ds-x" data-ds="close" aria-label="${esc(t('Close'))}">✕</button><b id="ds-title"></b>
+        <div class="ds-kinds" role="tablist">
+          <button data-ds="kind" data-k="a4" role="tab">${esc(t('Full page'))}</button>
+          <button data-ds="kind" data-k="receipt" role="tab">${esc(t('Long receipt'))}</button></div></div>
       <div class="cam-stage" id="ds-stage"><video playsinline muted autoplay></video>
         <div class="ds-frame" id="ds-frame"><img class="ds-ghost" id="ds-ghost" alt="" hidden><i></i><i></i><i></i><i></i></div>
         <div class="ds-hint" id="ds-hint" aria-live="polite"></div>
+        <div class="ds-strip" id="ds-strip"></div>
         <div class="ds-flash" id="ds-flash"></div>
         <div class="cam-msg" id="ds-msg">${esc(t('Starting camera…'))}</div></div>
-      <div class="ds-strip" id="ds-strip"></div>
-      <div class="cam-bar ds-bar">
+      <div class="ds-bar">
         <div class="ds-side">
-          <label class="btn sm ghost">${esc(t('Gallery'))}<input type="file" accept="image/*" multiple id="ds-file" hidden></label>
-          <button class="btn sm ghost" data-ds="torch" id="ds-torch" hidden>${esc(t('Torch'))}</button>
-          <button class="btn sm ghost" data-ds="auto" id="ds-auto">${esc(t('Auto'))}</button></div>
+          <label class="ds-ico" title="${esc(t('Gallery'))}" aria-label="${esc(t('Gallery'))}">${ICON.gallery}<input type="file" accept="image/*" multiple id="ds-file" hidden></label>
+          <button class="ds-ico" data-ds="torch" id="ds-torch" title="${esc(t('Torch'))}" aria-label="${esc(t('Torch'))}" hidden>${ICON.torch}</button>
+          <button class="ds-ico" data-ds="auto" id="ds-auto" title="${esc(t('Auto'))}" aria-label="${esc(t('Auto'))}">${ICON.auto}</button></div>
         <button class="ds-shutter" data-ds="shot" aria-label="${esc(t('Take photo'))}"></button>
-        <div class="ds-side end"><button class="btn sm primary" data-ds="done" id="ds-done" disabled></button></div>
+        <div class="ds-side end">
+          <button class="ds-ico" data-ds="retake" id="ds-retake" title="${esc(t('Retake last'))}" aria-label="${esc(t('Retake last'))}" hidden>${ICON.retake}</button>
+          <button class="ds-done" data-ds="done" id="ds-done" disabled></button></div>
       </div></div>`;
   }
 
@@ -52,17 +61,14 @@
   // Title, instructions, buttons and the frame for the current kind and part.
   function refresh() {
     const s = state, n = s.parts.length, rc = s.kind === 'receipt';
-    $('ds-title').textContent = rc ? t('Receipt · part {n}', { n: n + 1 }) : n ? t('Page {n}', { n: n + 1 }) : t('Scan invoice');
-    $('ds-sub').textContent = rc
-      ? (n ? t('Move down the receipt. Line up the faded strip with the same lines on the paper.') : t('Start at the top of the receipt. Fit its full width inside the frame.'))
-      : (n ? t('Scan the next page, or tap Done.') : t('Hold the phone flat above the page and fit the whole page inside the frame.'));
+    $('ds-title').textContent = t(rc ? 'Part {n}' : 'Page {n}', { n: n + 1 });
     root().querySelectorAll('[data-ds="kind"]').forEach((b) => { b.classList.toggle('on', b.dataset.k === s.kind); b.disabled = n > 0 && b.dataset.k !== s.kind; });
     const done = $('ds-done'); done.disabled = !n; done.textContent = n ? t('Done ({n})', { n }) : t('Done');
     $('ds-auto').classList.toggle('on', s.auto);
     const ghost = $('ds-ghost'), last = s.parts[n - 1];
     if (rc && last && last.ghost) { ghost.src = last.ghost; ghost.hidden = false; } else ghost.hidden = true;
-    $('ds-strip').innerHTML = s.parts.map((p, i) => `<span class="ds-thumb"><img src="${p.url}" alt=""><em>${i + 1}</em></span>`).join('')
-      + (n ? `<button class="btn sm ghost" data-ds="retake">${esc(t('Retake last'))}</button>` : '');
+    $('ds-strip').innerHTML = s.parts.map((p, i) => `<span class="ds-thumb"><img src="${p.url}" alt=""><em>${i + 1}</em></span>`).join('');
+    $('ds-retake').hidden = !n;
     layout();
   }
 
@@ -71,8 +77,10 @@
     const st = $('ds-stage'), fr = $('ds-frame'); if (!st || !fr) return;
     const W = st.clientWidth, H = st.clientHeight, ratio = KINDS[state.kind];
     let w, h;
-    if (ratio) { h = Math.min(H * 0.86, W * 0.9 * ratio); w = h / ratio; } else { w = Math.min(W * 0.7, H * 0.86 / 1.6); h = H * 0.86; }
-    state.frame = { x: (W - w) / 2, y: (H - h) / 2, w, h, W, H };
+    // Room above the frame for the hint, and below it for the photos taken so far.
+    const top = 44, room = H - top - 60;
+    if (ratio) { h = Math.min(room, W * 0.92 * ratio); w = h / ratio; } else { w = Math.min(W * 0.78, room / 1.5); h = room; }
+    state.frame = { x: (W - w) / 2, y: top + (room - h) / 2, w, h, W, H };
     Object.assign(fr.style, { left: state.frame.x + 'px', top: state.frame.y + 'px', width: w + 'px', height: h + 'px' });
     $('ds-ghost').style.height = OVERLAP * 100 + '%';
   }
@@ -148,10 +156,10 @@
         fr.classList.toggle('ok', ok);
         if (state.parts.length && !state.armed && state.auto) setHint(takenHint(), true);
         else if (c.dark) setHint(t('Too dark. Turn on the torch or find more light.'));
-        else if (c.empty) setHint(t(state.kind === 'receipt' ? 'Move closer so the receipt fills the frame from side to side' : 'Move closer so the page fills the frame'));
+        else if (c.empty) setHint(t(state.kind === 'receipt' ? 'Move closer: fill the frame side to side' : 'Move closer: fill the frame with the page'));
         else if (c.move >= 6) setHint(t('Hold still'));
         else if (state.auto && state.armed) setHint(t('Looks good. Hold still…'), true);
-        else setHint(t('Looks good. Tap the button to take the photo'), true);
+        else setHint(t('Looks good. Tap to take the photo'), true);
         // Give a moment after opening to pick the kind of document, and a steady second before the photo.
         if (ok && state.auto && state.armed && now - state.started > 2000 && now - state.okSince > 1100) shoot();
       }
@@ -186,7 +194,7 @@
     setHint(takenHint(), true);
   }
 
-  const takenHint = () => (state.kind === 'receipt' ? t('Part {n} taken. Move down for the next part, or tap Done.', { n: state.parts.length }) : t('Page taken. Tap Done, or scan the next page.'));
+  const takenHint = () => (state.kind === 'receipt' ? t('Part {n} taken. Move down and line up the faded strip', { n: state.parts.length }) : t('Page taken. Scan the next page or tap Done'));
 
   // Photos picked from the gallery are used whole, upright.
   async function addFiles(files) {
