@@ -7,7 +7,7 @@ import vm from 'node:vm';
 // Online ordering is only switched on for this one shop (the owner's own store), not for other POS tenants.
 export const STORE_ID = 'B1-RIYADH';
 export const SHOP = {
-  id: STORE_ID, en: 'Tamveen Mini Market', ar: 'تَمْوِين ميني ماركت', address: 'Al-Olaya, Riyadh 12211',
+  id: STORE_ID, en: 'Tamveen Mini Market', ar: 'تموين ميني ماركت', address: 'Al-Olaya, Riyadh 12211',
   phone: '+966 11 000 0000', lat: 24.6939, lng: 46.6853,
   deliveryFee: 10, freeDeliveryFrom: 100, minOrder: 25, currency: 'SAR',
 };
