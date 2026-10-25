@@ -122,8 +122,6 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
 .flag-ready .flag-poster{visibility:hidden}
 .flag-video{position:absolute;z-index:0;inset:0;width:100%;height:100%;opacity:.001;pointer-events:none}
 @keyframes vision-in{from{transform:translate(-50%,190%)}to{transform:translate(-50%,0)}}
-.demo-hint{font-size:12.5px;color:var(--muted);background:var(--soft);border-radius:12px;padding:10px 14px;line-height:1.55}
-.demo-hint code{font-family:inherit;font-weight:700;color:var(--green)}
 .divider{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:13px}
 .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--line)}
 

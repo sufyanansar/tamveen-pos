@@ -230,7 +230,7 @@
               <span class="eyebrow">${t('Store sign-in')}</span>
               <h1>${t('Welcome back.')}</h1>
             </div>
-            <label class="field"><span>${t('Store ID')}</span><input class="input" name="store" autocomplete="username" placeholder="[Store ID]" value="B1-RIYADH" required data-k="store"></label>
+            <label class="field"><span>${t('Store ID')}</span><input class="input" name="store" autocomplete="username" value="B1-RIYADH" required data-k="store"></label>
             <label class="field"><span class="between"><span>${t('Password')}</span><a href="#" data-a="forgot" style="font-size:13px">${t('Forgot password?')}</a></span>
               <span class="inwrap"><input class="input" type="password" name="password" value="demo1234" autocomplete="current-password" required id="pw" data-k="pw" style="padding-inline-end:52px">
               <button type="button" data-a="toggle-pw" aria-label="${t('Show password')}" style="position:absolute;inset-inline-end:6px;width:44px;height:44px;border:0;background:none;display:flex;align-items:center;justify-content:center">${I.eye}</button></span></label>
@@ -240,7 +240,6 @@
             <button class="btn primary" type="submit" style="height:56px;font-size:16px">${t('Sign in')} ${arrow()}</button>
             <div class="divider">${t('or')}</div>
             <button class="btn" type="button" data-a="pin-unlock" style="height:52px">${t('Unlock with PIN')}</button>
-            <div class="demo-hint">${t('PINs')} · ${t('Cashier')} <code>1111</code> · ${t('Manager')} <code>1234</code> · ${t('Owner')} <code>9999</code></div>
           </form>
         </div>
         <div class="row" style="flex-wrap:wrap;gap:8px 16px">
