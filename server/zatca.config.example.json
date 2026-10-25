@@ -14,7 +14,7 @@
     "industry": "Grocery retail"
   },
   "seller": {
-    "name": "تموين ميني ماركت",
+    "name": "تَمْوِين ميني ماركت",
     "crn": "1010123456",
     "address": { "street": "Olaya Street", "building": "1234", "district": "Al-Olaya", "city": "Riyadh", "postal": "12211", "country": "SA" }
   }

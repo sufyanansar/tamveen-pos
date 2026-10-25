@@ -106,7 +106,7 @@ window.SEED = (function () {
   return {
     version: 5,
     settings: {
-      lang: 'en', shopEn: 'Tamveen Mini Market', shopAr: 'تموين ميني ماركت', branch: 'Branch 1', branchAr: 'الفرع ١',
+      lang: 'en', shopEn: 'Tamveen Mini Market', shopAr: 'تَمْوِين ميني ماركت', branch: 'Branch 1', branchAr: 'الفرع ١',
       address: 'Al-Olaya, Riyadh 12211', vatNo: '300012345600003', cr: '1010123456', nextInvoice: 482, nextCN: 12, nextPay: 92,
     },
     users: [

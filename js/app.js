@@ -8,7 +8,7 @@
   const CART_KEY = 'tamveen-pos-cart-v3';
   const clone = (o) => JSON.parse(JSON.stringify(o));
   function load() {
-    try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.version === SEED.version) return s; } catch (e) { /* ignore */ }
+    try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.version === SEED.version) { if (s.settings && s.settings.shopAr === 'تموين ميني ماركت') s.settings.shopAr = SEED.settings.shopAr; return s; } } catch (e) { /* ignore */ }
     return clone(SEED);
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(db)); localStorage.setItem(CART_KEY, JSON.stringify(ui.cart)); } catch (e) { /* storage unavailable */ } }
@@ -187,7 +187,7 @@
     return `
     <div class="app">
       <header class="topbar">
-        <a class="brand" href="#/checkout" aria-label="Tamveen">${logo(36)}<span class="word">تَمْوِين</span></a>
+        <a class="brand" href="#/checkout" aria-label="تَمْوِين">${logo(36)}<span class="word">تَمْوِين</span></a>
         <div class="shopinfo"><b>${esc(isAr() ? db.settings.shopAr : db.settings.shopEn)} · ${esc(isAr() ? db.settings.branchAr : db.settings.branch)}</b>
           <div>${esc(isAr() ? u.nameAr : u.name)} · ${t(cap(u.role))}${shift ? ' · ' + shift : ''}</div></div>
         <span class="spacer"></span>
