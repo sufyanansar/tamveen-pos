@@ -21,7 +21,7 @@ export default api({
   GET: async ({ user }) => {
     need(user, 'staff');
     const [fleet, { orders }] = await Promise.all([readDoc('fleet'), readDoc('orders')]);
-    const out = orders.filter((o) => o.status === 'out').map((o) => ({ id: o.id, agentId: o.agentId, customer: o.customer.name, district: o.address.district, lat: o.address.lat, lng: o.address.lng }));
+    const out = orders.filter((o) => o.status === 'out').map((o) => ({ id: o.id, agentId: o.agentId, customer: o.customer.name, district: o.address.district, lat: o.address.lat, lng: o.address.lng, payment: o.payment, total: o.billedTotal != null ? o.billedTotal : o.total }));
     return { shop: SHOP, agents: Object.values(fleet.agents).map((a) => agentView(a, orders)), deliveries: out };
   },
 });

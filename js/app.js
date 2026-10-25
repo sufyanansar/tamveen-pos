@@ -669,24 +669,45 @@
 
   // ---------------------------------------------------------------- views: orders
   const ORDER_ST = { new: ['New', 'lime'], preparing: ['Preparing', 'amber'], ready: ['Ready', 'green'], completed: ['Completed', 'outline'], out: ['On the way', 'amber'], delivered: ['Delivered', 'outline'], cancelled: ['Cancelled', 'red'] };
-  function viewOrders() {
-    const items = db.orders.map((o) => ({ o, app: false, done: o.status === 'completed' }))
+  // Orders tab: every order from the app, WhatsApp and phone in one table, the selected one beside it.
+  const SOURCES = ['App', 'WhatsApp', 'Phone'];
+  const orderSrc = (it) => (it.app ? 'App' : SOURCES.includes(it.o.channel) ? it.o.channel : 'Phone');
+  function orderChip(o) {
+    const cls = { new: 'new', preparing: 'prep', ready: 'ready', out: 'out', delivered: 'done', completed: 'done', cancelled: 'cancel' }[o.status] || 'done';
+    const st = ORDER_ST[o.status] || [o.status];
+    return `<span class="ochip ${cls}">${t(st[0])}${o.status === 'out' && o.agentName ? ' · ' + esc(o.agentName) : ''}</span>`;
+  }
+  function orderItems() {
+    return db.orders.map((o) => ({ o, app: false, done: o.status === 'completed' }))
       .concat(onlineOn() ? net.orders.map((o) => ({ o, app: true, done: !appOpen(o) && o.status !== 'out' })) : [])
       .sort((a, b) => (a.done - b.done) || (Date.parse(b.o.at) - Date.parse(a.o.at)));
-    const rows = items.map(({ o, app }) => {
-      const st = ORDER_ST[o.status] || [o.status, ''];
-      const who = app ? `${esc(o.customer.name)}${o.address && o.address.district ? ' · ' + esc(o.address.district) : ''}` : esc(N(cust(o.customerId)) || t('Walk-in'));
-      const total = app ? (o.billedTotal != null ? o.billedTotal : o.total) : calc(o.lines).total;
-      return `<div class="order-row"><b class="num">${esc(o.id)}</b><span class="tag ${st[1]}">${t(st[0])}</span>${app ? `<span class="tag outline">${t('App')}</span>` : ''}
-        <span class="small muted">${who} · ${fmtTime(o.at)}</span><span class="spacer"></span>
-        <b class="num">${money(total)} SAR</b><button class="btn sm" data-a="order-view" data-id="${esc(o.id)}">${t('View details')}</button></div>`;
-    }).join('');
-    return `<div class="page-h"><div><h1>${t('Orders')}</h1>${onlineOn() ? `<div class="muted small">${t('App orders update by themselves.')}</div>` : ''}</div></div>
-      ${onlineOn() && net.err ? `<div class="banner warn" style="border-radius:12px;margin-bottom:12px;max-width:760px">${I.warn}<span>${t(net.err)}</span></div>` : ''}
-      <div class="order-list">${rows}</div>`;
   }
-  function orderBody(m) {
-    const o = db.orders.find((x) => x.id === m.id); if (!o) return appOrder(m.id) ? appOrderBody(appOrder(m.id)) : '';
+  function viewOrders() {
+    const all = orderItems(), src = ui.ordSrc || 'all';
+    const items = src === 'all' ? all : all.filter((it) => orderSrc(it) === src);
+    if (!items.some((it) => it.o.id === ui.ordSel)) ui.ordSel = items.length ? items[0].o.id : null;
+    const chip = (k, label) => `<button class="fchip ${src === k ? 'on' : ''}" data-a="ord-src" data-v="${k}">${t(label)} · ${k === 'all' ? all.length : all.filter((it) => orderSrc(it) === k).length}</button>`;
+    const rows = items.map((it) => {
+      const { o, app } = it;
+      const name = app ? esc(o.customer.name) : esc(N(cust(o.customerId)) || t('Walk-in'));
+      const district = app ? esc((o.address && o.address.district) || '') : esc(String(o.address || '').split(',')[0]);
+      const total = app ? (o.billedTotal != null ? o.billedTotal : o.total) : calc(o.lines).total;
+      return `<tr class="${o.id === ui.ordSel ? 'sel' : ''} ${it.done ? 'dim' : ''}" data-a="order-pick" data-id="${esc(o.id)}">
+        <td><b class="num">#${esc(String(o.id).replace(/^(APP|ORD)-/, ''))}</b></td><td>${name}</td><td class="muted">${district || '—'}</td>
+        <td class="muted num">${fmtTime(o.at)}</td><td>${t(orderSrc(it))}</td><td>${orderChip(o)}</td><td class="r num"><b>${money(total)}</b></td></tr>`;
+    }).join('');
+    const sel = ui.ordSel && (db.orders.find((x) => x.id === ui.ordSel) ? orderBody({ id: ui.ordSel }, true) : appOrder(ui.ordSel) ? appOrderBody(appOrder(ui.ordSel), true) : '');
+    return `${onlineOn() && net.err ? `<div class="banner warn" style="border-radius:12px;margin-bottom:12px">${I.warn}<span>${t(net.err)}</span></div>` : ''}
+      <div class="orders2">
+        <section class="card ocard"><div class="ohead"><h1>${t('Orders')}</h1><div class="fchips">${chip('all', 'All')}${SOURCES.map((k) => chip(k, k)).join('')}</div></div>
+          ${items.length ? `<div class="otable-wrap"><table class="otable"><thead><tr><th>${t('Order')}</th><th>${t('Customer')}</th><th>${t('District')}</th><th>${t('Placed')}</th><th>${t('Source')}</th><th>${t('Status')}</th><th class="r">${t('Total')}</th></tr></thead><tbody>${rows}</tbody></table></div>`
+            : `<div class="muted" style="padding:24px 4px">${t('No orders yet.')}</div>`}
+          ${onlineOn() ? `<div class="muted small" style="margin-top:auto;padding-top:12px">${t('App orders update by themselves.')}</div>` : ''}</section>
+        <aside class="card opanel">${sel || `<div class="muted">${t('Pick an order to see it here.')}</div>`}</aside>
+      </div>`;
+  }
+  function orderBody(m, panel) {
+    const o = db.orders.find((x) => x.id === m.id); if (!o) return appOrder(m.id) ? appOrderBody(appOrder(m.id), panel) : '';
     const c = calc(o.lines), cu = cust(o.customerId), st = ORDER_ST[o.status];
     const next = { new: ['prep', 'Prepare'], preparing: ['ready', 'Ready'] }[o.status];
     const lines = o.lines.map((l) => `<tr><td>${esc(N(l))}</td><td class="r num">${qtyFmt(l.qty, l.weighted)}</td><td class="r num"><b>${money(lineTotal(l))}</b></td></tr>`).join('');
@@ -697,7 +718,7 @@
       <div class="btns" style="grid-template-columns:repeat(auto-fit,minmax(90px,1fr))">${o.status === 'completed' ? `<a class="btn ghost" href="#/invoice/${o.invoiceId}" data-a="close" style="text-decoration:none">${t('View invoice')}</a>` : `
         ${next ? `<button class="btn" data-a="order-step" data-id="${o.id}" data-s="${next[0]}">${t(next[1])}</button>` : ''}
         <button class="btn primary" data-a="order-load" data-id="${o.id}">${t('Checkout')}</button>`}
-        <button class="btn ghost" data-a="close">${t('Close')}</button></div>`;
+        ${panel ? '' : `<button class="btn ghost" data-a="close">${t('Close')}</button>`}</div>`;
   }
 
 
@@ -771,7 +792,7 @@
   }
   const addrLine = (a) => [a.house, a.street, a.district, a.city].filter(Boolean).join(', ');
   const FEE_LINE = (fee) => ({ pid: 'delivery-fee', en: 'Delivery fee', ar: 'رسوم التوصيل', unit: 'service', price: fee, qty: 1, vat: 'standard', weighted: false, discount: 0, reason: '' });
-  function appOrderBody(o) {
+  function appOrderBody(o, panel) {
     const st = ORDER_ST[o.status] || [o.status, ''];
     const lines = o.lines.map((l) => `<tr><td>${esc(N(l))}</td><td class="r num">${qtyFmt(l.qty, l.weighted)}</td><td class="r num"><b>${money(lineTotal(l))}</b></td></tr>`).join('')
       + (o.deliveryFee ? `<tr><td>${t('Delivery fee')}</td><td class="r num">1</td><td class="r num"><b>${money(o.deliveryFee)}</b></td></tr>` : '');
@@ -794,8 +815,9 @@
         ${o.status === 'new' ? `<button class="btn" data-a="app-step" data-id="${esc(o.id)}" data-s="prepare">${t('Prepare')}</button>` : ''}
         ${appOpen(o) && !o.invoiceId ? `<button class="btn primary" data-a="order-load" data-id="${esc(o.id)}">${t('Checkout')}</button>` : ''}
         ${inv ? `<a class="btn ghost" href="#/invoice/${inv.id}" data-a="close" style="text-decoration:none">${t('View invoice')}</a>` : ''}
-        ${appOpen(o) ? `<button class="btn ghost" data-a="app-cancel" data-id="${esc(o.id)}">${t('Cancel order')}</button>` : ''}
-        <button class="btn ghost" data-a="close">${t('Close')}</button></div>`;
+        ${appOpen(o) && !panel ? `<button class="btn ghost" data-a="app-cancel" data-id="${esc(o.id)}">${t('Cancel order')}</button>` : ''}
+        ${panel ? '' : `<button class="btn ghost" data-a="close">${t('Close')}</button>`}</div>
+      ${panel && appOpen(o) ? `<button class="linkbtn red" style="font-size:13px;align-self:flex-start" data-a="app-cancel" data-id="${esc(o.id)}">${t('Cancel order…')}</button>` : ''}`;
   }
   // The customer's voice note: fetched with the staff token, played in place.
   const voice = { on: null, audio: null };
@@ -866,13 +888,21 @@
   const AGENT_ST = { delivering: ['On a delivery', '#C58A00'], returning: ['Returning', '#2F6FDE'], store: ['At the store', '#1D6947'], nosignal: ['No signal', '#A3231B'], off: ['Off duty', '#8A9A94'] };
   const ago = (iso) => { if (!iso) return '—'; const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000)); return s < 60 ? t('{n} s ago', { n: s }) : s < 3600 ? t('{n} min ago', { n: Math.round(s / 60) }) : fmtTime(iso); };
   function viewDelivery() {
-    const F = net.fleet, agents = F ? F.agents.filter((a) => a.onDuty) : [];
-    const list = agents.length ? agents.map((a) => { const st = AGENT_ST[a.status]; return `<button class="fleet-agent" data-a="fleet-focus" data-id="${a.id}">
-        <span class="dot" style="background:${st[1]}"></span><span><b>${esc(isAr() ? a.nameAr || a.name : a.name)}</b><small>${t(st[0])}${a.carrying.length ? ' · ' + a.carrying.join(', ') : ''}</small></span><small class="muted">${ago(a.at)}</small></button>`; }).join('')
-      : `<div class="muted small" style="padding:12px">${F ? t('No delivery agents on duty right now.') : t('Loading…')}</div>`;
-    return `<div class="page-h"><div><h1>${t('Delivery map')}</h1><div class="muted small">${t('{n} on duty', { n: agents.length })}${net.fleetAt ? ' · ' + t('Updated {t}', { t: ago(new Date(net.fleetAt).toISOString()) }) : ''}</div></div></div>
-      ${net.err ? `<div class="banner warn" style="border-radius:12px;margin-bottom:12px">${I.warn}<span>${t(net.err)}</span></div>` : ''}
-      <div class="fleet"><div class="fleet-map" id="fleet-slot"></div><div class="fleet-list">${list}</div></div>`;
+    const F = net.fleet, agents = F ? F.agents.filter((a) => a.onDuty).sort((x, y) => ['delivering', 'returning', 'store', 'nosignal'].indexOf(x.status) - ['delivering', 'returning', 'store', 'nosignal'].indexOf(y.status)) : [];
+    const nm = (a) => esc(isAr() ? a.nameAr || a.name : a.name);
+    const n = (k) => (k === 1 ? t('1 order') : t('{n} orders', { n: k }));
+    const list = agents.length ? agents.map((a) => {
+      const st = AGENT_ST[a.status] || AGENT_ST.off, sel = ui.fleetSel === a.id;
+      const jobs = sel ? F.deliveries.filter((d) => d.agentId === a.id).map((d) => `<span class="fl-job"><span>#${esc(String(d.id).replace(/^APP-/, ''))} · ${esc(d.customer)}${d.district ? ' · ' + esc(d.district) : ''}</span><b>${t(d.payment === 'card' ? 'Card' : 'Cash')} ${money(d.total)}</b></span>`).join('') : '';
+      return `<button class="fl-agent ${a.status} ${sel ? 'sel' : ''}" data-a="fleet-focus" data-id="${a.id}"><span class="fl-row"><i class="ast ${a.status}"></i>
+        <span class="fl-name"><b>${nm(a)}</b><small>${t(st[0])} · ${n(a.carrying.length)}</small></span><small class="fl-ago">${ago(a.at)}</small></span>${jobs}</button>`;
+    }).join('') : `<div class="muted small" style="padding:12px 0">${F ? t('No delivery agents on duty right now.') : t('Loading…')}</div>`;
+    const leg = (k, label) => `<span><i class="ast ${k}"></i>${t(label)}</span>`;
+    return `${net.err ? `<div class="banner warn" style="border-radius:12px;margin-bottom:12px">${I.warn}<span>${t(net.err)}</span></div>` : ''}
+      <div class="fleet"><aside class="card fl-side"><div class="ohead"><h1>${t('Agents on duty')}</h1><span class="muted">${agents.length}</span></div>
+        <div class="fl-list">${list}</div>
+        <div class="fl-legend">${leg('store', 'At the store')}${leg('delivering', 'On a delivery')}${leg('returning', 'Returning')}${leg('nosignal', 'No signal (over 2 min)')}</div></aside>
+        <div class="fleet-map" id="fleet-slot"></div></div>`;
   }
   const fleetMap = { el: null, map: null, markers: {}, loading: null, focus: null };
   function loadLeaflet() {
@@ -891,22 +921,22 @@
         const shop = (F && F.shop) || { lat: 24.6939, lng: 46.6853 };
         fleetMap.map = L.map(fleetMap.el, { zoomControl: true }).setView([shop.lat, shop.lng], 13);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19, subdomains: 'abcd', attribution: '&copy; OpenStreetMap &copy; CARTO' }).addTo(fleetMap.map);
-        L.marker([shop.lat, shop.lng], { icon: L.divIcon({ className: 'pin-shop', html: logo(30), iconSize: [36, 36], iconAnchor: [18, 18] }) }).addTo(fleetMap.map).bindTooltip(esc(isAr() ? db.settings.shopAr : db.settings.shopEn));
+        L.marker([shop.lat, shop.lng], { icon: L.divIcon({ className: '', html: `<span class="pin-shop2"><span>${logo(30)}</span><b>${t('Shop')}</b></span>`, iconSize: [0, 0], iconAnchor: [0, 0] }) }).addTo(fleetMap.map).bindTooltip(esc(isAr() ? db.settings.shopAr : db.settings.shopEn));
       }
       fleetMap.map.invalidateSize();
       if (!F) return;
       const seen = new Set();
       F.agents.filter((a) => a.onDuty && a.lat != null).forEach((a) => {
-        const st = AGENT_ST[a.status], k = 'a' + a.id; seen.add(k);
-        const html = `<span class="pin-agent" style="--c:${st[1]}"><b>${esc((isAr() ? a.nameAr || a.name : a.name))}</b></span>`;
+        const k = 'a' + a.id; seen.add(k);
+        const html = `<span class="pin-agent ${a.status}"><i class="ast ${a.status}"></i><b>${esc((isAr() ? a.nameAr || a.name : a.name))}${a.status === 'nosignal' ? ' · ' + t('No signal') : ''}</b></span>`;
         const icon = L.divIcon({ className: '', html, iconSize: [0, 0], iconAnchor: [0, 0] });
         if (fleetMap.markers[k]) fleetMap.markers[k].setLatLng([a.lat, a.lng]).setIcon(icon); else fleetMap.markers[k] = L.marker([a.lat, a.lng], { icon }).addTo(fleetMap.map);
       });
       F.deliveries.filter((d) => d.lat != null).forEach((d) => {
         const k = 'o' + d.id; seen.add(k);
-        if (!fleetMap.markers[k]) fleetMap.markers[k] = L.circleMarker([d.lat, d.lng], { radius: 7, color: '#105448', weight: 2, fillColor: '#AADD54', fillOpacity: 1 }).addTo(fleetMap.map).bindTooltip(`${d.id} · ${esc(d.customer)}${d.district ? ' · ' + esc(d.district) : ''}`);
+        if (!fleetMap.markers[k]) fleetMap.markers[k] = L.marker([d.lat, d.lng], { icon: L.divIcon({ className: '', html: `<span class="pin-cust"><svg width="26" height="34" viewBox="0 0 40 52" aria-hidden="true"><path d="M20 0C9 0 0 9 0 20c0 14 20 32 20 32s20-18 20-32C40 9 31 0 20 0z" fill="#105448"/><circle cx="20" cy="19" r="7" fill="#fff"/></svg><b>#${esc(String(d.id).replace(/^APP-/, ''))} · ${esc(d.customer)}</b></span>`, iconSize: [0, 0], iconAnchor: [0, 0] }) }).addTo(fleetMap.map);
         const ag = F.agents.find((a) => a.id === d.agentId), lk = 'l' + d.id;
-        if (ag && ag.lat != null) { seen.add(lk); const pts = [[ag.lat, ag.lng], [d.lat, d.lng]]; if (fleetMap.markers[lk]) fleetMap.markers[lk].setLatLngs(pts); else fleetMap.markers[lk] = L.polyline(pts, { color: '#105448', weight: 2, dashArray: '4 6', opacity: 0.7 }).addTo(fleetMap.map); }
+        if (ag && ag.lat != null) { seen.add(lk); const pts = [[ag.lat, ag.lng], [d.lat, d.lng]]; if (fleetMap.markers[lk]) fleetMap.markers[lk].setLatLngs(pts); else fleetMap.markers[lk] = L.polyline(pts, { color: '#105448', weight: 4, dashArray: '1 9', lineCap: 'round' }).addTo(fleetMap.map); }
       });
       Object.keys(fleetMap.markers).forEach((k) => { if (!seen.has(k)) { fleetMap.markers[k].remove(); delete fleetMap.markers[k]; } });
       if (!fleetMap.fitted) {
@@ -914,7 +944,11 @@
         if (pts.length > 1) fleetMap.map.fitBounds(pts, { padding: [48, 48], maxZoom: 15 });
         fleetMap.fitted = true;
       }
-      if (fleetMap.focus) { const a = F.agents.find((x) => x.id === fleetMap.focus); if (a && a.lat != null) fleetMap.map.setView([a.lat, a.lng], 15); fleetMap.focus = null; }
+      if (fleetMap.focus) {
+        const a = F.agents.find((x) => x.id === fleetMap.focus);
+        if (a && a.lat != null) { const pts = [[a.lat, a.lng]].concat(F.deliveries.filter((d) => d.agentId === a.id && d.lat != null).map((d) => [d.lat, d.lng])); if (pts.length > 1) fleetMap.map.fitBounds(pts, { padding: [80, 80], maxZoom: 16 }); else fleetMap.map.setView(pts[0], 15); }
+        fleetMap.focus = null;
+      }
     }).catch(() => {});
   }
 
@@ -1909,14 +1943,16 @@
       ui.rcv = { mode: '', sup: R.sup, lines: [], img: null, sample: false, busy: false, status: '' };
       save(); toast(t('{n} products updated', { n })); go('inventory');
     },
-    'order-view': (el) => openModal({ kind: 'order', id: el.dataset.id }),
+    'order-view': (el) => { if (route()[0] === 'orders') { ui.ordSel = el.dataset.id; closeModal(); render(); } else openModal({ kind: 'order', id: el.dataset.id }); },
+    'order-pick': (el) => { ui.ordSel = el.dataset.id; render(); },
+    'ord-src': (el) => { ui.ordSrc = el.dataset.v; render(); },
     'app-step': (el) => appAction(el.dataset.id, el.dataset.s),
     'app-cancel': (el) => openModal({ kind: 'app-cancel', id: el.dataset.id }),
     'app-voice': (el) => playVoice(el.dataset.v),
     'app-cancel-ok': async (el) => { const o = await appAction(el.dataset.id, 'cancel', { reason: el.dataset.r }); if (o) { closeModal(); toast(t('Order {o} cancelled', { o: esc(o.id) })); } },
     'demo-app-order': () => demoAppOrder(),
     'demo-drive': () => demoDrive(),
-    'fleet-focus': (el) => { fleetMap.focus = el.dataset.id; mountFleetMap(); },
+    'fleet-focus': (el) => { ui.fleetSel = ui.fleetSel === el.dataset.id ? null : el.dataset.id; fleetMap.focus = ui.fleetSel; render(); },
     'order-step': (el) => { const o = db.orders.find((x) => x.id === el.dataset.id); o.status = el.dataset.s === 'prep' ? 'preparing' : 'ready'; save(); render(); if (ui.modal) renderModal(); },
     'order-load': (el) => {
       const ao = !db.orders.some((x) => x.id === el.dataset.id) && appOrder(el.dataset.id);
