@@ -1,0 +1,16 @@
+{
+  "appId": "sa.tamveen.app",
+  "appName": "تَمْوِين",
+  "webDir": "www",
+  "backgroundColor": "#F3F8EC",
+  "ios": { "contentInset": "never", "limitsNavigationsToAppBoundDomains": false },
+  "android": { "allowMixedContent": false },
+  "plugins": {
+    "SocialLogin": {
+      "google": true,
+      "apple": true,
+      "facebook": false,
+      "twitter": false
+    }
+  }
+}

@@ -12,7 +12,8 @@ const clean = (s, n = 80) => String(s || '').replace(/[\u0000-\u001f]/g, '').tri
 
 export default api({
   GET: () => ({
-    google: isLive('google') ? { live: true, clientId: clientIds('google')[0] } : { live: false },
+    // clientId is the web client; iosClientId is what the iOS store app signs in with (its tokens carry the web client as audience).
+    google: isLive('google') ? { live: true, clientId: clientIds('google')[0], iosClientId: process.env.GOOGLE_IOS_CLIENT_ID || undefined } : { live: false },
     apple: isLive('apple') ? { live: true, clientId: clientIds('apple')[0] } : { live: false },
   }),
   POST: async ({ body }) => {

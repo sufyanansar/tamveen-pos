@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">تَمْوِين</string>
+    <string name="title_activity_main">تَمْوِين</string>
+    <string name="package_name">sa.tamveen.app</string>
+    <string name="custom_url_scheme">sa.tamveen.app</string>
+</resources>

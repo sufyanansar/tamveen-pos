@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const API = window.TAMVEEN_API || (/(^|\.)vercel\.app$|^localhost$|^127\./.test(location.hostname) && location.protocol.startsWith('http') ? '/api' : 'https://tamveen-pos.vercel.app/api');
+  const API = window.TAMVEEN_API || (!window.Capacitor && /(^|\.)vercel\.app$|^localhost$|^127\./.test(location.hostname) ? '/api' : 'https://tamveen-pos.vercel.app/api');
   const KEY = 'tamveen-shop-v1';
   const APP_NAME = 'تَمْوِين'; // the app's name everywhere, in both languages
   const $ = (s, r = document) => r.querySelector(s);
@@ -297,12 +297,14 @@
       body = `<div class="brand"><img src="../assets/logo.svg" alt="" width="36" height="36"><span lang="ar">${APP_NAME}</span></div>
         <div style="display:flex;flex-direction:column;gap:6px"><h1>${t('Sign in to place your order')}</h1><p>${t('Your basket is saved. We only use your name, phone and address to deliver your orders.')}</p></div>
         ${s.err ? `<div class="err">${esc(s.err)}</div>` : ''}
-        <div style="display:flex;flex-direction:column;gap:10px"><button class="sbtn" data-a="auth" data-p="apple" ${ui.busy ? 'disabled' : ''}>${I.apple}${t('Sign in with Apple')}</button>
+        <div style="display:flex;flex-direction:column;gap:10px">${isAndroidApp() ? '' : `<button class="sbtn" data-a="auth" data-p="apple" ${ui.busy ? 'disabled' : ''}>${I.apple}${t('Sign in with Apple')}</button>`}
           <button class="sbtn g" data-a="auth" data-p="google" ${ui.busy ? 'disabled' : ''}>${I.google}${t('Continue with Google')}</button></div>
         <p class="fine">${t('By continuing you agree to the {t} and {p}.', { t: `<a href="terms.html">${t('Terms')}</a>`, p: `<a href="privacy.html">${t('Privacy policy')}</a>` })}</p>`;
     }
     return body;
   }
+  // Apple's own rule (4.8) is for iOS; the Android store app offers Google only.
+  const isAndroidApp = () => !!(window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform() === 'android');
   function openSignin(then) { ui.signin = { step: 'start', then: then || null, quick: !!ui.signinSeen }; ui.signinSeen = true; renderOverlay(); mountFlag(); }
   function closeSignin() { ui.signin = null; cancelAnimationFrame(flagLoop); renderOverlay(); }
   async function authConfig() { if (!ui.auth) { try { ui.auth = await api('/auth'); } catch (e) { ui.auth = { google: {}, apple: {} }; } } return ui.auth; }
@@ -311,6 +313,11 @@
   async function nativeOrWebToken(provider, cfg) {
     const SL = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SocialLogin;
     if (SL) {
+      if (!ui.slReady) {
+        const A = ui.auth || {};
+        await SL.initialize({ google: { webClientId: A.google && A.google.clientId, iOSClientId: A.google && A.google.iosClientId, iOSServerClientId: A.google && A.google.clientId, mode: 'online' }, apple: {} });
+        ui.slReady = true;
+      }
       const r = await SL.login({ provider, options: provider === 'apple' ? { scopes: ['name', 'email'] } : { scopes: ['profile', 'email'] } });
       const res = r.result || r;
       const prof = res.profile || {};

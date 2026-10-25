@@ -5,7 +5,7 @@
   'use strict';
   const KEY = 'tamveen-driver-v1';
   const APP_NAME = 'Tamveen';
-  const API = window.TAMVEEN_API || (/vercel\.app$|^localhost$|^127\./.test(location.hostname) ? '/api' : 'https://tamveen-pos.vercel.app/api');
+  const API = window.TAMVEEN_API || (!window.Capacitor && /vercel\.app$|^localhost$|^127\./.test(location.hostname) ? '/api' : 'https://tamveen-pos.vercel.app/api');
   const SEND_EVERY = 15000; // ms between location updates while on duty
   const $ = (s, r = document) => r.querySelector(s);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
