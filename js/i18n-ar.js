@@ -625,6 +625,17 @@ window.I18N_AR = {
   'Quantity for the next scan': 'الكمية للمسح التالي',
   'Scan a barcode to start the bill.': 'امسح باركود لبدء الفاتورة.',
   'Scan a product with the barcode reader. Its details show here and it is added to the bill.': 'امسح المنتج بقارئ الباركود. تظهر تفاصيله هنا ويُضاف إلى الفاتورة.',
+  // ZATCA e-invoicing
+  'ZATCA e-invoice': 'الفاتورة الإلكترونية (هيئة الزكاة)',
+  'Invoice counter (ICV)': 'عداد الفواتير (ICV)',
+  'Invoice hash': 'تجزئة الفاتورة',
+  'Waiting': 'بالانتظار',
+  'Signed': 'موقّعة',
+  'Demo': 'تجريبي',
+  'Rejected': 'مرفوضة',
+  'ZATCA rejected {i}: {e}': 'رفضت الهيئة {i}: {e}',
+  'Synced · {n} waiting': 'تمت المزامنة · {n} بالانتظار',
+  'Service offline': 'الخدمة غير متصلة',
   // guided document camera
   'Scan invoice': 'مسح الفاتورة',
   'Scan again': 'المسح مرة أخرى',

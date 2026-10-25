@@ -1,0 +1,14 @@
+{
+  "name": "tamveen-pos-service",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Runs on the POS machine: serves Tamveen POS and signs and reports invoices to ZATCA (Fatoora Phase 2).",
+  "main": "index.js",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node index.js",
+    "onboard": "node onboard.js",
+    "test": "node --test test/*.test.js"
+  },
+  "license": "UNLICENSED"
+}

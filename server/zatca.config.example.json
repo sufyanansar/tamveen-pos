@@ -1,0 +1,21 @@
+{
+  "env": "sandbox",
+  "port": 8080,
+  "host": "127.0.0.1",
+  "dataDir": "./data",
+  "egs": {
+    "commonName": "TST-886431145-300012345600003",
+    "serialNumber": "1-Tamveen|2-POS|3-00000000-0000-0000-0000-000000000001",
+    "vatNumber": "300012345600003",
+    "orgName": "Tamveen Mini Market",
+    "branchName": "Branch 1",
+    "invoiceType": "0100",
+    "location": "1234 Olaya Street, Riyadh",
+    "industry": "Grocery retail"
+  },
+  "seller": {
+    "name": "تموين ميني ماركت",
+    "crn": "1010123456",
+    "address": { "street": "Olaya Street", "building": "1234", "district": "Al-Olaya", "city": "Riyadh", "postal": "12211", "country": "SA" }
+  }
+}

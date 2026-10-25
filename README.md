@@ -19,7 +19,7 @@ A clickable proof of concept of the Tamveen (تموين) grocery point of sale, 
 | Sign in | Store ID + password, PIN unlock, Vision 2030 panel with the animated flag, English / Arabic |
 | Checkout | Billing screen laid out like a counter till: the bill table on the left, the last scanned item's details, invoice amount and a big total on the right; keyboard shortcuts F2 customer, F3 find product, F5 settle; a quantity box for the next scan. Camera barcode scanning on phones and tablets (desktop tills use a hardware reader) (continuous: every read adds to the bill), hardware barcode scanners (type + Enter), pack barcodes (a carton adds 12 pieces), scale labels (`21…` barcodes carry the weight), search in Arabic or English, categories, weighed items, stock warnings, line discounts with manager PIN approval, customer select or create |
 | Payment | Cash with keypad and quick amounts, card (simulated terminal, incl. "no reply" recovery), bank transfer with reference, sell on credit against the customer's limit, split cash + card |
-| Invoice | Simplified / standard tax invoice, bilingual 80 mm receipt, ZATCA TLV QR code, print, send digital copy, offline queueing and sync |
+| Invoice | Simplified / standard tax invoice, bilingual 80 mm receipt, ZATCA UBL 2.1 XML (download from the invoice page), invoice hash chain and QR code, print, send digital copy, offline queueing and sync |
 | Returns | Credit note linked to the original invoice, partial quantities, restock, refund to cash / card / account balance |
 | Customers & credit | Balances, credit limit and terms, oldest-unpaid ageing, record payment with oldest-first or manual allocation, statement |
 | Products | Add / edit product, Arabic and English names, VAT category (locked for cashiers), packs and barcodes with duplicate detection, VAT-inclusive price breakdown, margin preview |
@@ -45,12 +45,19 @@ css/app.css       design tokens and layout
 js/data.js        sample shop data (products, customers, invoices, orders…)
 js/i18n-ar.js     Arabic strings
 js/app.js         the app: routing, views, actions
+js/zatca.js       ZATCA UBL 2.1 XML, invoice hash and QR (shared with server/)
 js/camera.js      camera barcode scanner (BarcodeDetector, else zxing-wasm, else ZXing JS)
 js/docscan.js     guided camera for delivery documents (A4 page or long receipt in parts)
 js/zxing-wasm-reader.js, js/zxing_reader.wasm  ZXing-C++ as WebAssembly (zxing-wasm 3.1.4, MIT), loaded only when needed
 js/zxing.min.js   ZXing barcode reader (@zxing/library 0.21.3, Apache-2.0), loaded only when needed
 js/qrcode.js      QR code generator (qrcode-generator 1.4.4, MIT)
 assets/           Sora font, Vision 2030 artwork, flag animation
+server/           POS machine service: signs invoices and reports them to ZATCA (Node, no dependencies)
+docs/zatca.md     how ZATCA e-invoicing works here and how to set up a POS machine
 ```
 
-This is a proof of concept: there is no server, no real payment terminal or ZATCA integration, and data stays in the browser that created it.
+## ZATCA e-invoicing
+
+On a POS machine, run the app through the local service in `server/`: it signs every invoice and reports it to ZATCA (Fatoora Phase 2). See [docs/zatca.md](docs/zatca.md) for setup and onboarding. The GitHub Pages demo has no service, so its invoices are built and hashed but not signed or sent.
+
+This is a proof of concept: there is no real payment terminal, and on the demo site data stays in the browser that created it.
