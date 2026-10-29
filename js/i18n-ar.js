@@ -17,6 +17,7 @@ window.I18N_AR = {
   'Open in maps': 'افتح في الخرائط',
   'Address notes': 'ملاحظات العنوان',
   'Voice note': 'ملاحظة صوتية',
+  'Could not translate right now. Type the English name.': 'تعذرت الترجمة الآن. اكتب الاسم بالإنجليزية.',
   'District': 'الحي',
   'Placed': 'وقت الطلب',
   'Source': 'المصدر',

@@ -1637,8 +1637,10 @@
       case 'new-cust': {
         const d = m.d || {};
         return `<h3>${t('New customer')}</h3><div class="grid2">
-          <label class="field"><span>${t('Name · Arabic')}</span><input class="input ar" dir="rtl" data-in="nc" data-f="ar" data-k="ncar" value="${esc(d.ar || '')}" autofocus></label>
-          <label class="field"><span>${t('Name · English')}</span><input class="input" data-in="nc" data-f="en" data-k="ncen" value="${esc(d.en || '')}"></label>
+          <label class="field"><span class="between">${t('Name · Arabic')}<span class="spacer"></span>${d.en && !d.trBusy ? `<button type="button" class="linkbtn" data-a="nc-translate" data-to="ar">${t('Translate')}</button>` : ''}</span><input class="input ar" dir="rtl" data-in="nc" data-f="ar" data-k="ncar" value="${esc(d.ar || '')}" autofocus></label>
+          <label class="field"><span class="between">${t('Name · English')}<span class="spacer"></span>${d.ar && !d.trBusy ? `<button type="button" class="linkbtn" data-a="nc-translate" data-to="en">${t('Translate')}</button>` : ''}</span><input class="input" dir="ltr" data-in="nc" data-f="en" data-k="ncen" value="${esc(d.en || '')}"></label></div>
+          ${d.trBusy ? `<small class="muted">${t('Translating…')}</small>` : d.auto && d[d.auto] ? `<small class="muted">${t('Machine translation. Check it and edit if needed.')}</small>` : ''}${d.trErr ? `<small style="color:var(--red)">${t(d.trErr)}</small>` : ''}
+          <div class="grid2">
           <label class="field"><span>${t('Phone')}</span><input class="input" data-in="nc" data-f="phone" data-k="ncph" value="${esc(d.phone || '')}" placeholder="+966"></label>
           <label class="field"><span>${t('VAT no. (business)')}</span><input class="input" data-in="nc" data-f="vatNo" data-k="ncvat" value="${esc(d.vatNo || '')}" placeholder="${t('Optional')}"></label></div>
           ${isMgr() ? `<label class="row" style="gap:8px"><input type="checkbox" data-in="nc-credit" ${d.credit ? 'checked' : ''} style="width:18px;height:18px;accent-color:#105448">${t('Open a credit account')}</label>` : ''}
@@ -1741,18 +1743,35 @@
   // ---------------------------------------------------------------- render
   // Suggests the Arabic product name from the English one with the free MyMemory translation API
   // (no key needed; about 5,000 characters a day per device). Staff can always edit the result.
+  async function suggestName(q, to) {
+    const r = await fetch(`https://api.mymemory.translated.net/get?langpair=${to === 'ar' ? 'en|ar' : 'ar|en'}&q=` + encodeURIComponent(q));
+    const j = await r.json();
+    const out = j && j.responseData && j.responseData.translatedText;
+    const ok = out && (to === 'ar' ? /[\u0600-\u06FF]/.test(out) : /[A-Za-z]/.test(out) && !/[\u0600-\u06FF]/.test(out));
+    if (!r.ok || !ok || j.responseStatus !== 200) throw new Error('bad');
+    return out.trim();
+  }
   async function translateName(manual) {
     const F = ui.form; if (!F || !F.en || !F.en.trim()) return;
     if (!manual && F.ar && !F.arAuto) return;
     const q = F.en.trim(); ui.trBusy = true; ui.trErr = ''; render();
     try {
-      const r = await fetch('https://api.mymemory.translated.net/get?langpair=en|ar&q=' + encodeURIComponent(q));
-      const j = await r.json();
-      const ar = j && j.responseData && j.responseData.translatedText;
-      if (!r.ok || !ar || j.responseStatus !== 200 || !/[\u0600-\u06FF]/.test(ar)) throw new Error('bad');
-      if (ui.form === F && F.en.trim() === q && (manual || !F.ar || F.arAuto)) { F.ar = ar.trim(); F.arAuto = true; }
+      const ar = await suggestName(q, 'ar');
+      if (ui.form === F && F.en.trim() === q && (manual || !F.ar || F.arAuto)) { F.ar = ar; F.arAuto = true; }
     } catch (e) { ui.trErr = 'Could not translate right now. Type the Arabic name.'; }
     ui.trBusy = false; render();
+  }
+  // New customer: whichever name the cashier types, the other language is suggested (and stays editable).
+  async function translateCustomer(to, manual) {
+    const d = ui.modal && ui.modal.kind === 'new-cust' && ui.modal.d; if (!d) return;
+    const from = to === 'ar' ? 'en' : 'ar', q = (d[from] || '').trim(); if (!q) return;
+    if (!manual && d[to] && d.auto !== to) return;
+    d.trBusy = true; d.trErr = ''; rerenderModalKeepFocus();
+    try {
+      const out = await suggestName(q, to);
+      if (ui.modal && ui.modal.d === d && (d[from] || '').trim() === q && (manual || !d[to] || d.auto === to)) { d[to] = out; d.auto = to; }
+    } catch (e) { d.trErr = to === 'ar' ? 'Could not translate right now. Type the Arabic name.' : 'Could not translate right now. Type the English name.'; }
+    d.trBusy = false; if (ui.modal && ui.modal.d === d) rerenderModalKeepFocus();
   }
 
   function render() {
@@ -1942,6 +1961,7 @@
     'new-sale': () => go('checkout'),
     // orders
     'translate-name': () => translateName(true),
+    'nc-translate': (el) => translateCustomer(el.dataset.to, true),
     'rc-mode': (el) => {
       const R = ui.rcv; if (R.img) URL.revokeObjectURL(R.img);
       Object.assign(R, { mode: el.dataset.m, lines: el.dataset.m === 'manual' ? [{ pid: '', qty: '1', on: true, manual: true }] : [], img: null, sample: false, busy: false, status: '' }); render();
@@ -2077,7 +2097,13 @@
     'disc-val': (el) => { ui.modal.value = el.value.replace(/[^\d.]/g, ''); rerenderModalKeepFocus(); },
     weight: (el) => { ui.modal.w = el.value.replace(/[^\d.]/g, ''); rerenderModalKeepFocus(); },
     'cust-q': (el) => { ui.modal.q = el.value; rerenderModalKeepFocus(); },
-    nc: (el) => { ui.modal.d[el.dataset.f] = el.value; rerenderModalKeepFocus(); },
+    nc: (el) => {
+      const d = ui.modal.d, f = el.dataset.f; d[f] = el.value;
+      if (d.auto === f) d.auto = null; // the cashier edited the suggestion: keep theirs
+      const to = f === 'en' ? 'ar' : f === 'ar' ? 'en' : null;
+      if (to && (!d[to] || d.auto === to)) { clearTimeout(ui.trTimer); ui.trTimer = setTimeout(() => translateCustomer(to, false), 800); }
+      rerenderModalKeepFocus();
+    },
     'nc-credit': (el) => { ui.modal.d.credit = el.checked; },
     'send-to': (el) => { ui.modal.to = el.value; },
     counted: (el) => { ui.modal.counted = el.value.replace(/[^\d.]/g, ''); rerenderModalKeepFocus(); },
