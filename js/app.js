@@ -748,6 +748,8 @@
   const ONLINE_STORE = 'B1-RIYADH';
   const onlineOn = () => (db.settings.storeId || ONLINE_STORE) === ONLINE_STORE;
   const API = /(^|\.)vercel\.app$|^localhost$|^127\./.test(location.hostname) ? '/api' : 'https://tamveen-pos.vercel.app/api';
+  // Map tiles come from js/map-tiles.js (OpenStreetMap, or Google once a key is set in Vercel).
+  const addTiles = (map) => (window.tamveenTiles ? tamveenTiles(map, API, lang()) : L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map));
   const net = { tok: null, tokFor: null, orders: [], seen: null, err: '', fleet: null, fleetAt: 0, tick: 0, busy: false };
   async function staffToken() {
     const u = user(); if (!u) throw new Error('signed out');
@@ -940,7 +942,7 @@
       if (!fleetMap.map) {
         const shop = (F && F.shop) || { lat: 24.6939, lng: 46.6853 };
         fleetMap.map = L.map(fleetMap.el, { zoomControl: true }).setView([shop.lat, shop.lng], 13);
-        L.tileLayer((window.TAMVEEN_TILES || { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', options: { maxZoom: 19, attribution: '&copy; OpenStreetMap' } }).url, (window.TAMVEEN_TILES || { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', options: { maxZoom: 19, attribution: '&copy; OpenStreetMap' } }).options).addTo(fleetMap.map);
+        addTiles(fleetMap.map);
         L.marker([shop.lat, shop.lng], { icon: L.divIcon({ className: '', html: `<span class="pin-shop2"><span>${logo(30)}</span><b>${t('Shop')}</b></span>`, iconSize: [0, 0], iconAnchor: [0, 0] }) }).addTo(fleetMap.map).bindTooltip(esc(isAr() ? db.settings.shopAr : db.settings.shopEn));
       }
       fleetMap.map.invalidateSize();
@@ -1570,6 +1572,47 @@
       <div class="card" style="margin-top:16px"><h2 style="font-size:18px;margin-bottom:12px">${t('Audit history')}</h2>
         ${db.audit.length ? `<div class="tblwrap" style="border:0"><table class="tbl"><tbody>${db.audit.slice(0, 15).map((a) => `<tr><td class="small muted num">${fmtDT(a.at)}</td><td>${esc(a.by)}</td><td>${esc(a.what)}</td></tr>`).join('')}</tbody></table></div>` : `<div class="muted">${t('No changes yet.')}</div>`}</div>`;
   }
+  // Store location: a manager drags the shop pin; the customer app, the driver app and the delivery map all read it.
+  function storeLocCard() {
+    const L0 = ui.loc || {};
+    const coords = L0.lat != null ? `${L0.lat.toFixed(6)}, ${L0.lng.toFixed(6)}` : t(L0.err ? 'Could not load the store location.' : 'Loading…');
+    return `<div class="card"><h2>${t('Store location')}</h2>
+      <div class="small muted">${t('Drag the pin or tap the map where the shop is. Customers, drivers and the delivery map use this point.')}</div>
+      <div class="loc-map" id="loc-slot"></div>
+      <label class="field"><span>${t('Address')}</span><input class="input" id="loc-addr" value="${esc(L0.address || '')}"></label>
+      <div class="small muted num" id="loc-coords" dir="ltr" style="margin:6px 0 10px">${coords}</div>
+      <div class="row"><button class="btn ghost" data-a="loc-here">${t('Use my current location')}</button><button class="btn primary" data-a="loc-save" ${L0.dirty ? '' : 'disabled'}>${t('Save location')}</button></div></div>`;
+  }
+  const locMap = { el: null, map: null, pin: null };
+  function setLoc(lat, lng, move) {
+    Object.assign(ui.loc, { lat, lng, dirty: true });
+    if (locMap.pin) locMap.pin.setLatLng([lat, lng]);
+    if (move && locMap.map) locMap.map.setView([lat, lng], 17);
+    const c = $('#loc-coords'); if (c) c.textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    const b = $('[data-a="loc-save"]'); if (b) b.disabled = false;
+  }
+  function mountLocMap() {
+    const slot = $('#loc-slot'); if (!slot) return;
+    if (!ui.loc) {
+      ui.loc = {};
+      fetch(API + '/shop').then((r) => r.json()).then((s) => { ui.loc = { lat: s.lat, lng: s.lng, address: s.address || '' }; render(); }).catch(() => { ui.loc = { err: true }; render(); });
+      return;
+    }
+    const addr = $('#loc-addr'); if (addr) addr.oninput = () => { ui.loc.address = addr.value; ui.loc.dirty = true; const b = $('[data-a="loc-save"]'); if (b) b.disabled = false; };
+    if (ui.loc.lat == null) return;
+    if (!locMap.el) { locMap.el = document.createElement('div'); locMap.el.className = 'loc-map-inner'; }
+    slot.appendChild(locMap.el);
+    loadLeaflet().then(() => {
+      if (!locMap.map) {
+        locMap.map = L.map(locMap.el, { zoomControl: true }).setView([ui.loc.lat, ui.loc.lng], 16);
+        addTiles(locMap.map);
+        locMap.pin = L.marker([ui.loc.lat, ui.loc.lng], { draggable: true, icon: L.divIcon({ className: '', html: `<span class="pin-shop2"><span>${logo(30)}</span><b>${t('Shop')}</b></span>`, iconSize: [0, 0], iconAnchor: [0, 0] }) }).addTo(locMap.map);
+        locMap.pin.on('dragend', () => { const p = locMap.pin.getLatLng(); setLoc(p.lat, p.lng); });
+        locMap.map.on('click', (e) => setLoc(e.latlng.lat, e.latlng.lng));
+      }
+      locMap.map.invalidateSize();
+    });
+  }
   function viewSettings() {
     const s = db.settings;
     const f = (k, label, dir) => `<label class="field"><span>${t(label)}</span><input class="input" ${dir ? `dir="${dir}"` : ''} data-in="setting" data-f="${k}" data-k="s${k}" value="${esc(s[k])}"></label>`;
@@ -1577,6 +1620,7 @@
       <div class="pf">
         <div class="card"><h2>${t('Shop')}</h2><div class="grid2">${f('shopAr', 'Shop name · Arabic', 'rtl')}${f('shopEn', 'Shop name · English')}${f('branch', 'Branch')}${f('branchAr', 'Branch · Arabic', 'rtl')}${f('address', 'Address')}${f('vatNo', 'VAT registration no.')}${f('cr', 'Commercial registration')}</div></div>
         <div style="display:flex;flex-direction:column;gap:16px">
+          ${isMgr() && onlineOn() ? storeLocCard() : ''}
           <div class="card"><h2>${t('Language')}</h2><div class="row"><button class="pill outline ${!isAr() ? 'on' : ''}" data-a="set-lang" data-l="en">English</button><button class="pill outline ${isAr() ? 'on' : ''}" data-a="set-lang" data-l="ar">العربية</button></div></div>
           <div class="card"><h2>${t('Employees')}</h2><div class="list" style="max-height:none">${db.users.map((u) => `<div class="between" style="padding:8px 0;border-bottom:1px solid var(--line)"><span><b>${esc(isAr() ? u.nameAr : u.name)}</b> · ${t(cap(u.role))}</span></div>`).join('')}</div></div>
           <div class="card"><h2>${t('Scanning')}</h2><label class="field"><span>${t('OCR server')}</span><input class="input" dir="ltr" id="ocr-url" data-k="socrUrl" value="${esc(rcOcrUrl())}" inputmode="url"></label><button class="btn primary" data-a="save-ocr" style="margin-top:10px">${t('Save')}</button></div>
@@ -1796,6 +1840,7 @@
       if (ui.modal && ui.modal.kind === 'line') { if (ui.cart.lines[ui.sel]) renderModal(); else closeModal(); }
       $('#demo-root').innerHTML = demoPanel();
       if (r === 'delivery') mountFleetMap();
+      if (r === 'settings') mountLocMap();
     }
     if (focusKey) {
       const el = (ui.modal && document.querySelector(`#modal-root [data-k="${focusKey}"]`)) || document.querySelector(`[data-k="${focusKey}"]`);
@@ -1848,6 +1893,19 @@
 
   const actions = {
     lang: () => { db.settings.lang = isAr() ? 'en' : 'ar'; save(); render(); },
+    'loc-here': () => {
+      if (!navigator.geolocation) return toast(t('Could not get your location'));
+      navigator.geolocation.getCurrentPosition((p) => setLoc(p.coords.latitude, p.coords.longitude, true), () => toast(t('Could not get your location')), { enableHighAccuracy: true, timeout: 15000 });
+    },
+    'loc-save': async () => {
+      const L0 = ui.loc; if (!L0 || L0.lat == null) return;
+      try {
+        const s = await apiCall('/shop', { method: 'PUT', body: { lat: L0.lat, lng: L0.lng, address: L0.address || '' } });
+        ui.loc = { lat: s.lat, lng: s.lng, address: s.address || '' };
+        if (net.fleet) net.fleet.shop = s;
+        toast(t('Store location saved')); render();
+      } catch (e) { toast(t(e.shown ? e.message : 'Could not save. Try again.')); }
+    },
     'save-ocr': () => { db.settings.ocrUrl = $('#ocr-url').value.trim(); save(); toast(t('Saved')); },
     'set-lang': (el) => { db.settings.lang = el.dataset.l; save(); render(); },
     'toggle-pw': () => { const p = $('#pw'); p.type = p.type === 'password' ? 'text' : 'password'; },

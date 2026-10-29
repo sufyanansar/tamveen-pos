@@ -1,14 +1,14 @@
 // /api/catalog — the products the customer app shows.
 //   GET  public: shop details, categories, active products with price and stock
 //   PUT  staff (POS): { categories, products } — the POS publishes its catalog whenever products change
-import { api, need, fail, SHOP, slimProduct } from './_lib/core.js';
-import { readDoc, updateDoc } from './_lib/docs.js';
+import { api, need, fail, slimProduct } from './_lib/core.js';
+import { readDoc, updateDoc, shopInfo } from './_lib/docs.js';
 
 export default api({
   GET: async ({ res }) => {
     const c = await readDoc('catalog');
     res.setHeader('Cache-Control', 'public, max-age=10, s-maxage=10, stale-while-revalidate=30');
-    return { shop: SHOP, updatedAt: c.updatedAt, categories: c.categories, products: c.products.filter((p) => p.active) };
+    return { shop: await shopInfo(), updatedAt: c.updatedAt, categories: c.categories, products: c.products.filter((p) => p.active) };
   },
   PUT: async ({ user, body }) => {
     need(user, 'staff');

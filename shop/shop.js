@@ -424,14 +424,15 @@
     const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = '../js/leaflet/leaflet.css'; document.head.appendChild(css);
     return (M.loading = loadScript('../js/leaflet/leaflet.js'));
   }
-  const TILES = (window.TAMVEEN_TILES || { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', options: { maxZoom: 19, attribution: '&copy; OpenStreetMap' } }); // set in js/map-tiles.js
+  // Map tiles come from js/map-tiles.js (OpenStreetMap, or Google once a key is set in Vercel).
+  const addTiles = (map) => (window.tamveenTiles ? tamveenTiles(map, API, S.lang) : L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map));
   function mapIn(slot, kind, center, zoom, opts = {}) {
     if (!M.el) { M.el = document.createElement('div'); M.el.className = 'map'; }
     slot.appendChild(M.el);
     return loadLeaflet().then(() => {
       if (!M.map) {
         M.map = L.map(M.el, { zoomControl: false, attributionControl: true });
-        L.tileLayer(TILES.url, TILES.options).addTo(M.map);
+        addTiles(M.map);
       }
       if (M.kind !== kind || opts.reset) { M.layers.forEach((l) => l.remove()); M.layers = []; M.map.setView(center, zoom); M.kind = kind; M.fitted = false; }
       M.map.invalidateSize();

@@ -1,8 +1,8 @@
 // /api/fleet — where the delivery agents are.
 //   POST  driver: { onDuty, lat?, lng?, acc?, heading? } — sent every ~15 s while on duty; off duty clears the position
 //   GET   staff: the shop, every agent with status and position, and the orders out for delivery
-import { api, need, fail, SHOP } from './_lib/core.js';
-import { readDoc, updateDoc, agentView } from './_lib/docs.js';
+import { api, need, fail } from './_lib/core.js';
+import { readDoc, updateDoc, agentView, shopInfo } from './_lib/docs.js';
 
 const n = (v) => (v == null || !isFinite(Number(v)) ? null : Number(v));
 
@@ -20,8 +20,8 @@ export default api({
   },
   GET: async ({ user }) => {
     need(user, 'staff');
-    const [fleet, { orders }] = await Promise.all([readDoc('fleet'), readDoc('orders')]);
+    const [fleet, { orders }, shop] = await Promise.all([readDoc('fleet'), readDoc('orders'), shopInfo()]);
     const out = orders.filter((o) => o.status === 'out').map((o) => ({ id: o.id, agentId: o.agentId, customer: o.customer.name, district: o.address.district, lat: o.address.lat, lng: o.address.lng, payment: o.payment, total: o.billedTotal != null ? o.billedTotal : o.total }));
-    return { shop: SHOP, agents: Object.values(fleet.agents).map((a) => agentView(a, orders)), deliveries: out };
+    return { shop, agents: Object.values(fleet.agents).map((a) => agentView(a, orders, shop)), deliveries: out };
   },
 });

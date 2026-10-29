@@ -676,3 +676,4 @@ button.rc-up{background:var(--white);font:inherit;font-weight:600;cursor:pointer
 @media (max-width:1180px){.orders2{grid-template-columns:1fr}.opanel{position:static}.fleet{grid-template-columns:1fr}.fleet-map{min-height:420px;order:-1}}
 @media(max-width:860px){.fleet{grid-template-columns:1fr}.fleet-map{min-height:60vh}}
 .leaflet-container{isolation:isolate;z-index:0}
+.loc-map{height:280px;border-radius:12px;overflow:hidden;margin:12px 0;border:1px solid var(--line)}.loc-map-inner{height:100%;width:100%}
