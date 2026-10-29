@@ -289,3 +289,4 @@ dl.kv dd{margin:0;text-align:end;font-weight:500}
 .vbtn.stop{background:var(--red)}
 .vbtn.ghost{background:none;color:var(--muted)}
 .vbtn.play{width:40px;padding:0}
+.leaflet-container{isolation:isolate;z-index:0}

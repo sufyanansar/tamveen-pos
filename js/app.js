@@ -920,7 +920,7 @@
       if (!fleetMap.map) {
         const shop = (F && F.shop) || { lat: 24.6939, lng: 46.6853 };
         fleetMap.map = L.map(fleetMap.el, { zoomControl: true }).setView([shop.lat, shop.lng], 13);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19, subdomains: 'abcd', attribution: '&copy; OpenStreetMap &copy; CARTO' }).addTo(fleetMap.map);
+        L.tileLayer((window.TAMVEEN_TILES || { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', options: { maxZoom: 19, attribution: '&copy; OpenStreetMap' } }).url, (window.TAMVEEN_TILES || { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', options: { maxZoom: 19, attribution: '&copy; OpenStreetMap' } }).options).addTo(fleetMap.map);
         L.marker([shop.lat, shop.lng], { icon: L.divIcon({ className: '', html: `<span class="pin-shop2"><span>${logo(30)}</span><b>${t('Shop')}</b></span>`, iconSize: [0, 0], iconAnchor: [0, 0] }) }).addTo(fleetMap.map).bindTooltip(esc(isAr() ? db.settings.shopAr : db.settings.shopEn));
       }
       fleetMap.map.invalidateSize();
