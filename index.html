@@ -15,7 +15,7 @@
 <script>
 // Reload onto the newest build when a deploy lands, so cached pages never linger.
 (function () {
-  var V = '63';
+  var V = '64';
   function check() {
     fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
       if (!j || String(j.v) === V) return;
@@ -35,11 +35,11 @@
 <noscript><p style="padding:24px">Tamveen POS needs JavaScript.</p></noscript>
 <script src="js/qrcode.js?v=63"></script>
 <script src="js/data.js?v=63"></script>
-<script src="js/i18n-ar.js?v=63"></script>
+<script src="js/i18n-ar.js?v=64"></script>
 <script src="js/camera.js?v=63"></script>
 <script src="js/docscan.js?v=63"></script>
 <script src="js/zatca.js?v=63"></script>
 <script src="js/map-tiles.js?v=63"></script>
-<script src="js/app.js?v=63"></script>
+<script src="js/app.js?v=64"></script>
 </body>
 </html>

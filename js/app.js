@@ -1578,7 +1578,7 @@
         <div class="card"><h2>${t('Shop')}</h2><div class="grid2">${f('shopAr', 'Shop name · Arabic', 'rtl')}${f('shopEn', 'Shop name · English')}${f('branch', 'Branch')}${f('branchAr', 'Branch · Arabic', 'rtl')}${f('address', 'Address')}${f('vatNo', 'VAT registration no.')}${f('cr', 'Commercial registration')}</div></div>
         <div style="display:flex;flex-direction:column;gap:16px">
           <div class="card"><h2>${t('Language')}</h2><div class="row"><button class="pill outline ${!isAr() ? 'on' : ''}" data-a="set-lang" data-l="en">English</button><button class="pill outline ${isAr() ? 'on' : ''}" data-a="set-lang" data-l="ar">العربية</button></div></div>
-          <div class="card"><h2>${t('Employees')}</h2><div class="list" style="max-height:none">${db.users.map((u) => `<div class="between" style="padding:8px 0;border-bottom:1px solid var(--line)"><span><b>${esc(isAr() ? u.nameAr : u.name)}</b> · ${t(cap(u.role))}</span><span class="small muted">PIN ${u.pin}</span></div>`).join('')}</div></div>
+          <div class="card"><h2>${t('Employees')}</h2><div class="list" style="max-height:none">${db.users.map((u) => `<div class="between" style="padding:8px 0;border-bottom:1px solid var(--line)"><span><b>${esc(isAr() ? u.nameAr : u.name)}</b> · ${t(cap(u.role))}</span></div>`).join('')}</div></div>
           <div class="card"><h2>${t('Scanning')}</h2><label class="field"><span>${t('OCR server')}</span><input class="input" dir="ltr" id="ocr-url" data-k="socrUrl" value="${esc(rcOcrUrl())}" inputmode="url"></label><button class="btn primary" data-a="save-ocr" style="margin-top:10px">${t('Save')}</button></div>
           <div class="card"><h2>${t('Demo data')}</h2><button class="btn danger" data-a="reset">${t('Reset demo data')}</button></div>
         </div>
@@ -1736,8 +1736,7 @@
         <button class="btn sm ghost" data-a="demo-price">${t('Change a shelf price (Sugar +0.25)')}</button>
         ${onlineOn() ? `<button class="btn sm ghost" data-a="demo-app-order">${t('Send a test app order')}</button>
         <button class="btn sm ghost" data-a="demo-drive" ${sim.on ? 'disabled' : ''}>${t(sim.on ? 'Driver on the way…' : 'Simulate a driver delivering')}</button>` : ''}
-        <button class="btn sm ghost" data-a="reset">${t('Reset demo data')}</button>
-        <div class="small muted">${t('PINs · Cashier 1111 · Manager 1234 · Owner 9999')}</div></div>` : ''}`;
+        <button class="btn sm ghost" data-a="reset">${t('Reset demo data')}</button></div>` : ''}`;
   }
 
   // ---------------------------------------------------------------- render

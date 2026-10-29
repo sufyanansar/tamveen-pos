@@ -7,7 +7,7 @@ A clickable proof of concept of the Tamveen (تموين) grocery point of sale, 
 ## Try it
 
 1. Sign in with any store ID and password, and pick who to sign in as (Cashier, Manager or Owner).
-2. PINs for *Unlock with PIN*, *Lock · switch employee* and discount approval: Cashier `1111`, Manager `1234`, Owner `9999`.
+2. *Unlock with PIN*, *Lock · switch employee* and discount approval use each employee's PIN.
 3. Use **Demo controls** (top bar) to simulate a lost shop server, internet outage, printer out of paper, a card terminal that does not reply, or a shelf price change.
 4. **Camera scanning (phones and tablets):** tap **Scan with camera** in the barcode field at checkout and allow camera access. To try it, open **Products → Test barcodes** on another screen (or print it) and point the camera at a barcode.
 5. **Settings → Reset demo data** restores the sample shop.
