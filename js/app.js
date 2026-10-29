@@ -282,13 +282,33 @@
     [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER].forEach((k) => gl.texParameteri(gl.TEXTURE_2D, k, gl.LINEAR));
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     gl.viewport(0, 0, canvas.width, canvas.height);
-    const draw = () => {
-      if (!document.body.contains(video)) return;
+    // Browsers sometimes leave the video paused or stuck after a reload (autoplay refused, the page
+    // restored from cache, the tab hidden, a stalled load), which froze the flag. A watchdog restarts it.
+    const play = () => { const p = video.play(); if (p && p.catch) p.catch(() => {}); };
+    let lastT = -1, stuckSince = 0, kicks = 0;
+    const watch = (now) => {
+      if (document.hidden) { stuckSince = 0; return; }
+      if (video.currentTime !== lastT) { lastT = video.currentTime; stuckSince = 0; kicks = 0; return; }
+      if (!stuckSince) { stuckSince = now; return; }
+      if (now - stuckSince < 900) return;
+      stuckSince = now; kicks += 1;
+      if (kicks > 3) { kicks = 0; video.load(); } // still stuck: fetch the video again
+      else if (video.paused || video.ended) play();
+      else { video.currentTime = (video.currentTime + 0.05) % (video.duration || 1); play(); }
+    };
+    const wake = () => { if (!document.body.contains(video)) return off(); stuckSince = 0; play(); };
+    const off = () => { ['pointerdown', 'keydown', 'touchstart'].forEach((e) => document.removeEventListener(e, wake)); document.removeEventListener('visibilitychange', wake); window.removeEventListener('pageshow', wake); };
+    ['pointerdown', 'keydown', 'touchstart'].forEach((e) => document.addEventListener(e, wake, { passive: true }));
+    document.addEventListener('visibilitychange', wake); window.addEventListener('pageshow', wake);
+    video.addEventListener('canplay', play);
+    const draw = (now) => {
+      if (!document.body.contains(video)) return off();
       if (video.readyState >= 2) { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video); gl.drawArrays(gl.TRIANGLES, 0, 6); panel.classList.add('flag-ready'); }
+      watch(now || 0);
       flagLoop = requestAnimationFrame(draw);
     };
     cancelAnimationFrame(flagLoop);
-    const p = video.play(); if (p && p.catch) p.catch(() => {});
+    play();
     draw();
   }
 
