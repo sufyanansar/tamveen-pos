@@ -5,15 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tamveen POS</title>
 <meta name="description" content="Tamveen POS — web proof of concept for a Saudi grocery point of sale (bilingual, ZATCA-style invoices).">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='100 100 800 800'%3E%3Cg%3E%3Cpath d='M500 149C500 121 522 112 543 131L689 261C707 277 708 288 691 306L561 423C546 440 527 440 512 426C503 418 500 405 500 390Z' fill='%2389C943'/%3E%3Cpath d='M500 149C500 121 522 112 543 131L689 261C707 277 708 288 691 306L561 423C546 440 527 440 512 426C503 418 500 405 500 390Z' fill='%23AADD54' transform='rotate(90 500 500)'/%3E%3Cpath d='M500 149C500 121 522 112 543 131L689 261C707 277 708 288 691 306L561 423C546 440 527 440 512 426C503 418 500 405 500 390Z' fill='%2389C943' transform='rotate(180 500 500)'/%3E%3Cpath d='M500 149C500 121 522 112 543 131L689 261C707 277 708 288 691 306L561 423C546 440 527 440 512 426C503 418 500 405 500 390Z' fill='%23AADD54' transform='rotate(270 500 500)'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/app.css?v=59">
+<link rel="stylesheet" href="css/app.css?v=60">
 <script>
 // Reload onto the newest build when a deploy lands, so cached pages never linger.
 (function () {
-  var V = '59';
+  var V = '60';
   function check() {
     fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
       if (!j || String(j.v) === V) return;
@@ -31,12 +33,12 @@
 <div id="demo-root"></div>
 <div id="print-area"></div>
 <noscript><p style="padding:24px">Tamveen POS needs JavaScript.</p></noscript>
-<script src="js/qrcode.js?v=59"></script>
-<script src="js/data.js?v=59"></script>
-<script src="js/i18n-ar.js?v=59"></script>
-<script src="js/camera.js?v=59"></script>
-<script src="js/docscan.js?v=59"></script>
-<script src="js/zatca.js?v=59"></script>
-<script src="js/app.js?v=59"></script>
+<script src="js/qrcode.js?v=60"></script>
+<script src="js/data.js?v=60"></script>
+<script src="js/i18n-ar.js?v=60"></script>
+<script src="js/camera.js?v=60"></script>
+<script src="js/docscan.js?v=60"></script>
+<script src="js/zatca.js?v=60"></script>
+<script src="js/app.js?v=60"></script>
 </body>
 </html>

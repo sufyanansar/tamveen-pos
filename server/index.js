@@ -14,7 +14,7 @@ const svc = service(config);
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json',
   '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.mp4': 'video/mp4', '.wasm': 'application/wasm', '.ico': 'image/x-icon' };
 // Only the app's own files are served; never this folder or the data folder.
-const PUBLIC = /^\/(index\.html|version\.json|css\/[\w.-]+|js\/[\w.-]+|assets\/[\w.-]+)$/;
+const PUBLIC = /^\/(index\.html|favicon\.ico|version\.json|css\/[\w.-]+|js\/[\w.-]+|assets\/[\w.-]+)$/;
 
 const send = (res, status, body, type = 'application/json') => {
   res.writeHead(status, { 'Content-Type': type, 'Cache-Control': 'no-store' });

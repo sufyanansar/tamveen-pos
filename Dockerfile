@@ -4,7 +4,7 @@
 #     -v "$PWD/zatca.config.json:/app/server/zatca.config.json:ro" -v tamveen-data:/data tamveen-pos
 FROM node:20-alpine
 WORKDIR /app
-COPY index.html version.json ./
+COPY index.html favicon.ico version.json ./
 COPY css ./css
 COPY js ./js
 COPY assets ./assets
