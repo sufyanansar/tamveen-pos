@@ -174,9 +174,12 @@
   function stepper(p, q) {
     return `<div class="step"><button data-a="sub" data-id="${p.id}" aria-label="${t('Remove')}">${I.minus}</button><b class="${p.weighted ? 'kg' : ''}">${esc(qtyLabel(p, q))}</b><button data-a="add" data-id="${p.id}" aria-label="${t('Add')}">${I.plus}</button></div>`;
   }
+  // Stand-in photos for the demo catalog until the shop uploads its own (assets/products/<id>.jpg).
+  const DEMO_IMG = /^p([1-9]|1\d|2[0-5])$/;
+  const imgOf = (p) => p.img || (DEMO_IMG.test(p.id) ? '../assets/products/' + p.id + '.jpg' : '');
   function card(p) {
     const q = S.basket[p.id] || 0, out = p.stock <= 0;
-    const ph = `<span class="ph">${p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy">` : I.img}</span>`;
+    const ph = `<span class="ph">${imgOf(p) ? `<img src="${esc(imgOf(p))}" alt="" loading="lazy" onerror="this.remove()">` : I.img}</span>`;
     const info = `${ph}<span class="nm">${esc(N(p))}</span><span class="per">${esc(perText(p))}</span>${priceHtml(p.price)}`;
     return `<div class="pc ${out ? 'out' : ''}">${out ? `<span class="info">${info}</span><button class="add" disabled>${t('Out of stock')}</button>`
       : `<a class="info" href="#/product/${encodeURIComponent(p.id)}">${info}</a>${q ? stepper(p, q) : `<button class="add" data-a="add" data-id="${p.id}" aria-label="${esc(t('Add'))} ${esc(N(p))}">${I.plusBare}</button>`}`}</div>`;
@@ -287,7 +290,7 @@
       <header class="hdr sub pd-hdr"><a class="gbtn" href="#/home" aria-label="${t('Back')}">${I.back}</a><div class="t"><h1>${t('Product details')}</h1></div>
         <a class="gbtn" href="#/basket" aria-label="${t('Basket')}">${I.bag}${basketN ? `<span class="n">${basketN}</span>` : ''}</a></header>
       <div class="pd">
-        <div class="pd-photo">${p.img ? `<img src="${esc(p.img)}" alt="${esc(N(p))}">` : `${I.img.replace('width="24" height="24"', 'width="40" height="40"')}<span>${t('Product photo')}</span>`}</div>
+        <div class="pd-photo">${imgOf(p) ? `<img src="${esc(imgOf(p))}" alt="${esc(N(p))}">` : `${I.img.replace('width="24" height="24"', 'width="40" height="40"')}<span>${t('Product photo')}</span>`}</div>
         <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><h1>${esc(N(p))}</h1><div class="alt">${esc(N2(p))}</div></div>${cat ? `<span class="chip">${esc(N(cat).replace(/ · .*$/, ''))}</span>` : ''}</div>
         <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">${priceHtml(p.price, 'bigprice')}<span class="muted" style="font-size:13px">${esc(perText(p))} · ${t('VAT included')}</span></div>
         ${p.stock <= 0 ? `<div class="warnline">${t('Out of stock')}</div>` : ''}
@@ -302,7 +305,7 @@
     if (!T.lines.length) return `<div class="screen"><header class="hdr sub"><a class="gbtn" href="#/home" aria-label="${t('Back')}">${I.back}</a><div class="t"><h1>${t('Basket')}</h1></div><span style="width:48px"></span></header>
       <div class="empty" style="padding-top:40px">${t('Your basket is empty.')}<div style="margin-top:16px"><a class="btn" href="#/home" style="width:auto;display:inline-flex">${t('Start shopping')}</a></div></div></div>`;
     const short = r2(sh.minOrder - T.subtotal);
-    const lines = T.lines.map(({ p, qty }) => `<li><span class="th">${p.img ? `<img src="${esc(p.img)}" alt="">` : ''}</span><span class="tx"><b>${esc(N(p))}</b>
+    const lines = T.lines.map(({ p, qty }) => `<li><span class="th">${imgOf(p) ? `<img src="${esc(imgOf(p))}" alt="" onerror="this.remove()">` : ''}</span><span class="tx"><b>${esc(N(p))}</b>
       <small>${p.weighted ? `${sar(p.price)} ${t('/ kg · approx. weight')}` : `${sar(p.price)} ${t('each')}`}</small><b>${p.weighted ? '≈ ' : ''}${sar(p.price * qty)}</b></span>
       <span class="pill-step"><button data-a="sub" data-id="${p.id}" aria-label="${t('Remove')}">${(p.weighted ? qty <= 1 : qty <= 1) ? I.trash : I.minusBare}</button><span>${esc(qtyLabel(p, qty))}</span><button data-a="add" data-id="${p.id}" aria-label="${t('Add')}">${I.plusSm}</button></span></li>`).join('');
     const radio = (k, v, title, sub2) => `<button class="radio ${S[k] === v ? 'on' : ''}" data-a="set" data-k="${k}" data-v="${v}" role="radio" aria-checked="${S[k] === v}"><span class="o"></span><span><b>${t(title)}</b>${sub2 ? `<small>${t(sub2)}</small>` : ''}</span></button>`;
@@ -673,6 +676,19 @@
     if (keepFlag && $('#signin')) { $('#signin .panel').innerHTML = panelHtml(); return; }
     o.innerHTML = signinHtml();
   }
+  // Category circles travel along the header's curve: each one's height, size and fade follow where it
+  // sits across the row, so swiping looks like the icons orbit under the arc rather than sliding flat.
+  let orbitFrame = 0;
+  const orbitSoon = () => { if (!orbitFrame) orbitFrame = requestAnimationFrame(() => { orbitFrame = 0; orbit(); }); };
+  function orbit() {
+    const row = $('.cats'); if (!row) return;
+    const r = row.getBoundingClientRect(), mid = r.left + r.width / 2, half = r.width / 2;
+    row.querySelectorAll('.cat').forEach((c) => {
+      const b = c.getBoundingClientRect(), x = (b.left + b.width / 2 - mid) / half, x2 = x * x;
+      const y = 18 - 32 * x2, sc = Math.max(0.72, 1 - 0.14 * x2), fade = Math.min(1, Math.max(0, 1.6 - Math.abs(x)));
+      c.style.transform = `translateY(${y.toFixed(1)}px) scale(${sc.toFixed(3)})`; c.style.opacity = fade.toFixed(2);
+    });
+  }
   // A saved-address link opened while signed out asks for sign-in, then comes back to it.
   function needSignin(then) { if (!S.token && !ui.signin) setTimeout(() => { if (!S.token && !ui.signin) openSignin(then); }); }
   function render() {
@@ -683,7 +699,7 @@
     if (M.el && M.el.parentNode) M.el.remove();
     const views = { home: viewHome, product: () => viewProduct(a), basket: viewBasket, address: () => (S.profile ? viewAddress(a, b) : (needSignin('address/' + [a || 'new', b].filter(Boolean).join('/')), viewHome())), orders: viewOrders, order: () => viewTrack(a), account: viewAccount };
     $('#app').innerHTML = !ui.catalog && ui.catFailed ? viewOffline() : offlineBar() + (views[r] || viewHome)() + sheetHtml();
-    const cs = $('[data-scroll="cats"]'); if (cs) cs.scrollLeft = catScroll;
+    const cs = $('[data-scroll="cats"]'); if (cs) { cs.scrollLeft = catScroll; orbit(); }
     if (r === 'address' && S.profile) mountAddressMap();
     if (r === 'order') mountTrackMap(a);
     if (fk) { const el = document.querySelector(`[data-in="${act.dataset.in}"]${act.dataset.f ? `[data-f="${act.dataset.f}"]` : ''}`); if (el) { el.focus(); if (sel) try { el.setSelectionRange(sel[0], sel[1]); } catch (e) { /* ignore */ } } }
@@ -816,7 +832,7 @@
   document.addEventListener('focusout', (ev) => { if (ev.target.dataset && ev.target.dataset.in === 'q') setTimeout(() => { const b = $('#suggest'); if (b && !b.contains(document.activeElement)) b.hidden = true; }, 150); });
   document.addEventListener('scroll', (ev) => {
     const el = ev.target; if (!el.dataset || el.dataset.scroll !== 'cats') return;
-    el.classList.add('moving'); clearTimeout(ui.catMove); ui.catMove = setTimeout(() => el.classList.remove('moving'), 140);
+    orbitSoon();
     const pg = Math.round(Math.abs(el.scrollLeft) / el.clientWidth); if (pg !== (ui.catPage || 0)) { ui.catPage = pg; document.querySelectorAll('.dots i').forEach((d, i) => d.classList.toggle('on', i === pg)); }
   }, true);
   document.addEventListener('submit', async (ev) => {
