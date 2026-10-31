@@ -816,6 +816,7 @@
   document.addEventListener('focusout', (ev) => { if (ev.target.dataset && ev.target.dataset.in === 'q') setTimeout(() => { const b = $('#suggest'); if (b && !b.contains(document.activeElement)) b.hidden = true; }, 150); });
   document.addEventListener('scroll', (ev) => {
     const el = ev.target; if (!el.dataset || el.dataset.scroll !== 'cats') return;
+    el.classList.add('moving'); clearTimeout(ui.catMove); ui.catMove = setTimeout(() => el.classList.remove('moving'), 140);
     const pg = Math.round(Math.abs(el.scrollLeft) / el.clientWidth); if (pg !== (ui.catPage || 0)) { ui.catPage = pg; document.querySelectorAll('.dots i').forEach((d, i) => d.classList.toggle('on', i === pg)); }
   }, true);
   document.addEventListener('submit', async (ev) => {

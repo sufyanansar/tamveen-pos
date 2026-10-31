@@ -44,9 +44,12 @@ a{color:var(--g)}
 /* categories */
 .cats{margin:-41px 0 0;overflow-x:auto;scroll-snap-type:x mandatory;display:flex;scrollbar-width:none;position:relative;z-index:2}
 .cats::-webkit-scrollbar{display:none}
-.cat-page{flex:0 0 100%;scroll-snap-align:start;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:0 16px 8px}
+.cat-page{flex:0 0 100%;scroll-snap-align:start;scroll-snap-stop:always;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:0 16px 24px}
 .cat{padding:0;border:0;background:transparent;color:var(--g);display:flex;flex-direction:column;align-items:center;gap:6px}
-.cat:nth-child(2),.cat:nth-child(3){margin-top:16px}
+.cat{transition:transform .28s cubic-bezier(.2,.7,.3,1)}
+.cat:nth-child(2),.cat:nth-child(3){transform:translateY(16px)}
+/* While the row is being swiped it slides as a straight line, then settles back into the curve. */
+.cats.moving .cat{transform:none;transition-duration:.12s}
 .cat .bub{width:64px;height:64px;border-radius:999px;background:rgba(255,255,255,.7);backdrop-filter:blur(16px) saturate(180%);-webkit-backdrop-filter:blur(16px) saturate(180%);border:1px solid rgba(255,255,255,.85);box-shadow:0 8px 24px rgba(16,84,72,.2);display:flex;align-items:center;justify-content:center}
 .cat.on .bub{background:var(--g);color:#fff;border-color:var(--g)}
 .cat.on .bub svg{stroke:#fff}
