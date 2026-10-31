@@ -112,11 +112,14 @@
 
   // ---------------------------------------------------------------- api
   async function api(path, opts = {}) {
-    let r;
+    let r, timer;
     try {
-      r = await fetch(API + path, { method: opts.method || 'GET', headers: Object.assign({ 'Content-Type': 'application/json' }, S.token ? { Authorization: 'Bearer ' + S.token } : {}), body: opts.body ? JSON.stringify(opts.body) : undefined });
-    } catch (e) { throw new Error(t('No internet connection.')); }
+      const ctl = window.AbortController ? new AbortController() : null;
+      timer = ctl && setTimeout(() => ctl.abort(), opts.timeout || (opts.method && opts.method !== 'GET' ? 60000 : 15000));
+      r = await fetch(API + path, { signal: ctl ? ctl.signal : undefined, method: opts.method || 'GET', headers: Object.assign({ 'Content-Type': 'application/json' }, S.token ? { Authorization: 'Bearer ' + S.token } : {}), body: opts.body ? JSON.stringify(opts.body) : undefined });
+    } catch (e) { clearTimeout(timer); throw new Error(t('No internet connection.')); }
     const j = await r.json().catch(() => ({}));
+    clearTimeout(timer);
     if (r.status === 401 && S.token && !opts.noAuthReset) { S.token = null; S.profile = null; persist(); }
     if (!r.ok) throw new Error(j.error ? t(j.error) : t('Something went wrong. Please try again.'));
     return j;
@@ -205,11 +208,11 @@
         </div>
         <button class="deliver" data-a="pick-address"><small>${t('Deliver to')}</small><b>${a ? esc(addrTitle(a)) : t('Add your address')} ${I.chev}</b></button>
       </header>
-      <nav class="cats" aria-label="Categories" data-scroll="cats">${pages.map((pg) => `<div class="cat-page">${pg.map((c) => `<button class="cat ${ui.cat === c.id ? 'on' : ''}" data-a="cat" data-id="${c.id}" aria-pressed="${ui.cat === c.id}"><span class="bub">${catIcon(c.id)}</span><span>${esc(N(c).replace(/ · .*$/, '').replace(/ &.*$/, ''))}</span></button>`).join('')}</div>`).join('')}</nav>
+      <nav class="cats" aria-label="Categories" data-scroll="cats">${!C ? `<div class="cat-page">${'<span class="cat skel"><span class="bub"></span><span>&nbsp;</span></span>'.repeat(4)}</div>` : ''}${pages.map((pg) => `<div class="cat-page">${pg.map((c) => `<button class="cat ${ui.cat === c.id ? 'on' : ''}" data-a="cat" data-id="${c.id}" aria-pressed="${ui.cat === c.id}"><span class="bub">${catIcon(c.id)}</span><span>${esc(N(c).replace(/ · .*$/, '').replace(/ &.*$/, ''))}</span></button>`).join('')}</div>`).join('')}</nav>
       ${pages.length > 1 ? `<div class="dots" aria-hidden="true">${pages.map((_, i) => `<i class="${i === (ui.catPage || 0) ? 'on' : ''}"></i>`).join('')}</div>` : '<div style="height:16px"></div>'}
       <section class="sec">
         <div class="sec-h"><h1>${title}</h1><span>${t('Prices include VAT')}</span></div>
-        ${!C ? `<div class="empty">…</div>` : list.length ? `<div class="grid">${list.map(card).join('')}</div>` : `<div class="empty">${t('No products match.')}</div>`}
+        ${!C ? `<div class="grid">${'<div class="pc skel"></div>'.repeat(6)}</div>` : list.length ? `<div class="grid">${list.map(card).join('')}</div>` : `<div class="empty">${t('No products match.')}</div>`}
       </section>
       ${basketN ? `<button class="basket-bar" data-a="go" data-to="basket"><span class="c">${T.lines.length}</span><span><small>${T.count === 1 ? t('1 item') : t('{n} items', { n: T.lines.length })}</small><b>${sar(T.subtotal)}</b></span><span class="go">${t('View basket')} ${I.arrow}</span></button>` : ''}
       ${nav('home')}

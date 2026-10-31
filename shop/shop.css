@@ -294,3 +294,6 @@ dl.kv dd{margin:0;text-align:end;font-weight:500}
 .offline h1{font-size:22px;margin:6px 0 0}.offline p{color:var(--muted);margin:0 0 14px;max-width:300px}.offline .btn{max-width:260px}
 .off-ic{width:72px;height:72px;border-radius:50%;background:#EEF4E6;color:var(--g);display:flex;align-items:center;justify-content:center}.off-ic svg{width:34px;height:34px}
 .offbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:8px;justify-content:center;background:#FFF4D6;color:#6B4E00;font-size:13px;font-weight:600;padding:8px 12px;padding-top:max(8px,env(safe-area-inset-top))}
+@keyframes skel{0%{opacity:.55}50%{opacity:1}100%{opacity:.55}}
+.cat.skel .bub{animation:skel 1.2s ease-in-out infinite}.cat.skel span:last-child{width:48px;height:12px;border-radius:6px;background:#E3EBDA;animation:skel 1.2s ease-in-out infinite}
+.pc.skel{height:212px;background:#fff;animation:skel 1.2s ease-in-out infinite}
