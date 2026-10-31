@@ -14,6 +14,6 @@ copy('shop');
 copy('js/leaflet');
 copy('js/map-tiles.js');
 if (fs.existsSync(path.join(root, 'assets/products'))) copy('assets/products');
-for (const f of ['logo.svg', 'vision-2030.png', 'flag.png', 'flag.mp4', 'sora.woff2']) copy('assets/' + f);
+for (const f of ['shop-icon-192.png', 'shop-icon-512.png', 'shop-apple-touch-icon.png', 'logo.svg', 'vision-2030.png', 'flag.png', 'flag.mp4', 'sora.woff2']) copy('assets/' + f);
 fs.writeFileSync(path.join(www, 'index.html'), '<!doctype html><meta charset="utf-8"><script>location.replace("shop/index.html")</script>\n');
 console.log('www ready');
