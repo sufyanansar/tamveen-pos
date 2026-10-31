@@ -57,7 +57,7 @@
     'Signed in with Apple': 'مسجّل عبر Apple', 'Signed in with Google': 'مسجّل عبر Google', 'Welcome': 'أهلاً بك', 'Sign in to order and track deliveries.': 'سجّل الدخول للطلب وتتبع التوصيل.',
     'Delete your account?': 'حذف حسابك؟', 'Your name, phone and saved addresses are deleted now. Past orders are kept without your name, only as the tax invoices the shop must keep.': 'يُحذف اسمك وجوالك وعناوينك الآن. تبقى الطلبات السابقة دون اسمك، كفواتير ضريبية يلزم المتجر حفظها.',
     'Delete': 'حذف', 'Cancel': 'إلغاء', 'Save': 'حفظ', 'Account deleted': 'تم حذف الحساب', 'Signed out': 'تم تسجيل الخروج', 'Add new address': 'إضافة عنوان جديد', 'Choose an address': 'اختر عنواناً', 'Edit': 'تعديل',
-    'Order placed. We are on it.': 'تم الطلب. نعمل عليه الآن.', 'Something went wrong. Please try again.': 'حدث خطأ. حاول مرة أخرى.', 'No internet connection.': 'لا يوجد اتصال بالإنترنت.', 'No products match.': 'لا توجد منتجات مطابقة.',
+    'Order placed. We are on it.': 'تم الطلب. نعمل عليه الآن.', 'Something went wrong. Please try again.': 'حدث خطأ. حاول مرة أخرى.', 'No internet connection.': 'لا يوجد اتصال بالإنترنت.', 'You are offline': 'أنت غير متصل', 'Check your Wi-Fi or mobile data, then try again.': 'تحقق من الواي فاي أو بيانات الجوال ثم حاول مرة أخرى.', 'Try again': 'حاول مرة أخرى', 'Offline. Prices may have changed.': 'غير متصل. قد تكون الأسعار تغيّرت.', 'Connect to the internet to place your order.': 'اتصل بالإنترنت لإتمام طلبك.', 'No products match.': 'لا توجد منتجات مطابقة.',
     'Shop': 'المتجر', 'Orders': 'الطلبات', 'Account': 'الحساب', 'Back': 'رجوع', 'Close': 'إغلاق', 'Remove': 'إزالة', 'Added to basket': 'أُضيف إلى السلة',
     'Delivery is free from {n} SAR.': 'التوصيل مجاني من {n} ر.س.', 'English': 'English', 'العربية': 'العربية',
   };
@@ -76,6 +76,7 @@
   // ---------------------------------------------------------------- icons
   const ico = (d, w = 22, sw = 1.8, extra = '') => `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${d}</svg>`;
   const I = {
+    wifiOff: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 2l20 20M8.5 16.4a5 5 0 0 1 7 0M5 12.9a10 10 0 0 1 5.2-2.8M19 12.9a10 10 0 0 0-2.5-1.9M1.5 9.4a15 15 0 0 1 4.3-2.7M22.5 9.4A15 15 0 0 0 10.7 5.1M12 20h.01"/></svg>',
     search: ico('<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>', 20, 1.9),
     bag: ico('<path d="M5 8h14l-1.2 11.1a2 2 0 0 1-2 1.9H8.2a2 2 0 0 1-2-1.9z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>'),
     chev: ico('<path d="M6 9l6 6 6-6"/>', 16, 2.2), back: ico('<path d="M15 18l-6-6 6-6"/>', 22, 2, 'class="flip"'), next: ico('<path d="M9 18l6-6-6-6"/>', 16, 2, 'class="flip"'),
@@ -121,8 +122,8 @@
     return j;
   }
   async function loadCatalog() {
-    try { ui.catalog = await api('/catalog'); try { localStorage.setItem(KEY + '-catalog', JSON.stringify(ui.catalog)); } catch (e) { /* ignore */ } }
-    catch (e) { try { ui.catalog = ui.catalog || JSON.parse(localStorage.getItem(KEY + '-catalog')); } catch (x) { /* none */ } if (!ui.catalog) toast(e.message, 'bad'); }
+    try { ui.catalog = await api('/catalog'); ui.catFailed = false; try { localStorage.setItem(KEY + '-catalog', JSON.stringify(ui.catalog)); } catch (e) { /* ignore */ } }
+    catch (e) { try { ui.catalog = ui.catalog || JSON.parse(localStorage.getItem(KEY + '-catalog')); } catch (x) { /* none */ } ui.catFailed = !ui.catalog; }
     // Drop basket items the shop no longer sells.
     Object.keys(S.basket).forEach((pid) => { if (ui.catalog && !prod(pid)) delete S.basket[pid]; });
     render();
@@ -177,6 +178,13 @@
     return `<div class="pc ${out ? 'out' : ''}">${out ? `<span class="info">${info}</span><button class="add" disabled>${t('Out of stock')}</button>`
       : `<a class="info" href="#/product/${encodeURIComponent(p.id)}">${info}</a>${q ? stepper(p, q) : `<button class="add" data-a="add" data-id="${p.id}" aria-label="${esc(t('Add'))} ${esc(N(p))}">${I.plusBare}</button>`}`}</div>`;
   }
+  // First launch with no connection and nothing saved: a full screen with a retry button.
+  function viewOffline() {
+    return `<div class="screen offline"><div class="off-ic">${I.wifiOff}</div><h1>${t('You are offline')}</h1>
+      <p>${t('Check your Wi-Fi or mobile data, then try again.')}</p>
+      <button class="btn" data-a="retry" ${ui.retrying ? 'disabled' : ''}>${t('Try again')}</button></div>`;
+  }
+  const offlineBar = () => (ui.offline && ui.catalog ? `<div class="offbar" role="status">${I.wifiOff}<span>${t('Offline. Prices may have changed.')}</span></div>` : '');
   function viewHome() {
     const C = ui.catalog;
     const a = currentAddress(), T = totals(), basketN = Object.keys(S.basket).length;
@@ -606,14 +614,16 @@
     if (keepFlag && $('#signin')) { $('#signin .panel').innerHTML = panelHtml(); return; }
     o.innerHTML = signinHtml();
   }
+  // A saved-address link opened while signed out asks for sign-in, then comes back to it.
+  function needSignin(then) { if (!S.token && !ui.signin) setTimeout(() => { if (!S.token && !ui.signin) openSignin(then); }); }
   function render() {
     document.documentElement.lang = S.lang; document.documentElement.dir = isAr() ? 'rtl' : 'ltr';
     const [r, a, b] = route();
     const act = document.activeElement, fk = act && act.dataset ? (act.dataset.in || '') + (act.dataset.f || '') : '', sel = fk && act.selectionStart != null ? [act.selectionStart, act.selectionEnd] : null;
     const catScroll = $('[data-scroll="cats"]') ? $('[data-scroll="cats"]').scrollLeft : 0;
     if (M.el && M.el.parentNode) M.el.remove();
-    const views = { home: viewHome, product: () => viewProduct(a), basket: viewBasket, address: () => (S.profile ? viewAddress(a, b) : viewHome()), orders: viewOrders, order: () => viewTrack(a), account: viewAccount };
-    $('#app').innerHTML = (views[r] || viewHome)() + sheetHtml();
+    const views = { home: viewHome, product: () => viewProduct(a), basket: viewBasket, address: () => (S.profile ? viewAddress(a, b) : (needSignin('address/' + [a || 'new', b].filter(Boolean).join('/')), viewHome())), orders: viewOrders, order: () => viewTrack(a), account: viewAccount };
+    $('#app').innerHTML = !ui.catalog && ui.catFailed ? viewOffline() : offlineBar() + (views[r] || viewHome)() + sheetHtml();
     const cs = $('[data-scroll="cats"]'); if (cs) cs.scrollLeft = catScroll;
     if (r === 'address' && S.profile) mountAddressMap();
     if (r === 'order') mountTrackMap(a);
@@ -670,6 +680,7 @@
     if (!S.profile || !S.profile.name) return openSignin('place');
     const a = currentAddress(); if (!a) return go('address/new/place');
     const T = totals(); if (!T.lines.length || ui.busy) return;
+    if (ui.offline) return toast(t('Connect to the internet to place your order.'), 'bad');
     if (V.state === 'rec') recStop();
     ui.busy = true; render();
     try {
@@ -692,6 +703,7 @@
     'pd-sub': (el) => { const p = prod(el.dataset.id); ui.pdQty[p.id] = Math.max(stepOf(p), r2((ui.pdQty[p.id] || 1) - stepOf(p))); render(); },
     'pd-put': (el) => { const p = prod(el.dataset.id); setQty(p.id, (S.basket[p.id] || 0) + Number(el.dataset.n)); ui.pdQty[p.id] = 1; toast(t('Added to basket')); history.length > 1 ? history.back() : go('home'); },
     place: () => placeOrder(),
+    retry: async () => { ui.retrying = true; render(); await loadCatalog(); ui.retrying = false; render(); },
     signin: () => openSignin(route()[0] === 'orders' ? 'orders' : null),
     'signin-close': () => closeSignin(),
     'signin-back': () => { ui.signin.step = 'start'; ui.signin.err = ''; renderOverlay(true); },
@@ -767,5 +779,8 @@
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { loadOrders(); if (route()[0] === 'home') loadCatalog(); } });
 
   const ov = document.createElement('div'); ov.id = 'overlay'; document.body.appendChild(ov);
+  ui.offline = navigator.onLine === false;
+  window.addEventListener('offline', () => { ui.offline = true; render(); });
+  window.addEventListener('online', () => { ui.offline = false; loadCatalog(); loadOrders(); });
   render(); loadCatalog(); loadProfile(); loadOrders();
 })();
