@@ -179,7 +179,7 @@
   const imgOf = (p) => p.img || (DEMO_IMG.test(p.id) ? '../assets/products/' + p.id + '.jpg' : '');
   function card(p) {
     const q = S.basket[p.id] || 0, out = p.stock <= 0;
-    const ph = `<span class="ph">${imgOf(p) ? `<img src="${esc(imgOf(p))}" alt="" loading="lazy" onerror="this.remove()">` : I.img}</span>`;
+    const ph = `<span class="ph">${I.img}${imgOf(p) ? `<img src="${esc(imgOf(p))}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
     const info = `${ph}<span class="nm">${esc(N(p))}</span><span class="per">${esc(perText(p))}</span>${priceHtml(p.price)}`;
     return `<div class="pc ${out ? 'out' : ''}">${out ? `<span class="info">${info}</span><button class="add" disabled>${t('Out of stock')}</button>`
       : `<a class="info" href="#/product/${encodeURIComponent(p.id)}">${info}</a>${q ? stepper(p, q) : `<button class="add" data-a="add" data-id="${p.id}" aria-label="${esc(t('Add'))} ${esc(N(p))}">${I.plusBare}</button>`}`}</div>`;
@@ -290,7 +290,7 @@
       <header class="hdr sub pd-hdr"><a class="gbtn" href="#/home" aria-label="${t('Back')}">${I.back}</a><div class="t"><h1>${t('Product details')}</h1></div>
         <a class="gbtn" href="#/basket" aria-label="${t('Basket')}">${I.bag}${basketN ? `<span class="n">${basketN}</span>` : ''}</a></header>
       <div class="pd">
-        <div class="pd-photo">${imgOf(p) ? `<img src="${esc(imgOf(p))}" alt="${esc(N(p))}">` : `${I.img.replace('width="24" height="24"', 'width="40" height="40"')}<span>${t('Product photo')}</span>`}</div>
+        <div class="pd-photo">${I.img.replace('width="24" height="24"', 'width="40" height="40"')}<span>${t('Product photo')}</span>${imgOf(p) ? `<img src="${esc(imgOf(p))}" alt="${esc(N(p))}" onerror="this.remove()">` : ''}</div>
         <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><h1>${esc(N(p))}</h1><div class="alt">${esc(N2(p))}</div></div>${cat ? `<span class="chip">${esc(N(cat).replace(/ · .*$/, ''))}</span>` : ''}</div>
         <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">${priceHtml(p.price, 'bigprice')}<span class="muted" style="font-size:13px">${esc(perText(p))} · ${t('VAT included')}</span></div>
         ${p.stock <= 0 ? `<div class="warnline">${t('Out of stock')}</div>` : ''}
