@@ -57,7 +57,7 @@
     'Signed in with Apple': 'مسجّل عبر Apple', 'Signed in with Google': 'مسجّل عبر Google', 'Welcome': 'أهلاً بك', 'Sign in to order and track deliveries.': 'سجّل الدخول للطلب وتتبع التوصيل.',
     'Delete your account?': 'حذف حسابك؟', 'Your name, phone and saved addresses are deleted now. Past orders are kept without your name, only as the tax invoices the shop must keep.': 'يُحذف اسمك وجوالك وعناوينك الآن. تبقى الطلبات السابقة دون اسمك، كفواتير ضريبية يلزم المتجر حفظها.',
     'Delete': 'حذف', 'Cancel': 'إلغاء', 'Save': 'حفظ', 'Account deleted': 'تم حذف الحساب', 'Signed out': 'تم تسجيل الخروج', 'Add new address': 'إضافة عنوان جديد', 'Choose an address': 'اختر عنواناً', 'Edit': 'تعديل',
-    'Order placed. We are on it.': 'تم الطلب. نعمل عليه الآن.', 'Something went wrong. Please try again.': 'حدث خطأ. حاول مرة أخرى.', 'No internet connection.': 'لا يوجد اتصال بالإنترنت.', 'You are offline': 'أنت غير متصل', 'Check your Wi-Fi or mobile data, then try again.': 'تحقق من الواي فاي أو بيانات الجوال ثم حاول مرة أخرى.', 'Try again': 'حاول مرة أخرى', 'Offline. Prices may have changed.': 'غير متصل. قد تكون الأسعار تغيّرت.', 'Connect to the internet to place your order.': 'اتصل بالإنترنت لإتمام طلبك.', 'No products match.': 'لا توجد منتجات مطابقة.',
+    'Order placed. We are on it.': 'تم الطلب. نعمل عليه الآن.', 'Something went wrong. Please try again.': 'حدث خطأ. حاول مرة أخرى.', 'No internet connection.': 'لا يوجد اتصال بالإنترنت.', 'See all results for “{q}”': 'عرض كل النتائج لـ «{q}»', 'Clear': 'مسح', 'Similar products': 'منتجات مشابهة', 'You are offline': 'أنت غير متصل', 'Check your Wi-Fi or mobile data, then try again.': 'تحقق من الواي فاي أو بيانات الجوال ثم حاول مرة أخرى.', 'Try again': 'حاول مرة أخرى', 'Offline. Prices may have changed.': 'غير متصل. قد تكون الأسعار تغيّرت.', 'Connect to the internet to place your order.': 'اتصل بالإنترنت لإتمام طلبك.', 'No products match.': 'لا توجد منتجات مطابقة.',
     'Shop': 'المتجر', 'Orders': 'الطلبات', 'Account': 'الحساب', 'Back': 'رجوع', 'Close': 'إغلاق', 'Remove': 'إزالة', 'Added to basket': 'أُضيف إلى السلة',
     'Delivery is free from {n} SAR.': 'التوصيل مجاني من {n} ر.س.', 'English': 'English', 'العربية': 'العربية',
   };
@@ -181,6 +181,60 @@
     return `<div class="pc ${out ? 'out' : ''}">${out ? `<span class="info">${info}</span><button class="add" disabled>${t('Out of stock')}</button>`
       : `<a class="info" href="#/product/${encodeURIComponent(p.id)}">${info}</a>${q ? stepper(p, q) : `<button class="add" data-a="add" data-id="${p.id}" aria-label="${esc(t('Add'))} ${esc(N(p))}">${I.plusBare}</button>`}`}</div>`;
   }
+  // ---------------------------------------------------------------- search
+  // Forgiving product search: Arabic letter variants and diacritics are folded, every query word may match
+  // the start or middle of a name, brand or category, and small typos (one or two letters) still match.
+  const fold = (x) => String(x || '').toLowerCase().normalize('NFKD').replace(/[\u064B-\u065F\u0670\u0640\u0300-\u036f]/g, '')
+    .replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي')
+    .replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  function near(a, b, max) { // edit distance ≤ max, a swapped pair of letters counting as one edit
+    if (Math.abs(a.length - b.length) > max) return false;
+    let pp = null, prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i++) {
+      const cur = [i];
+      for (let j = 1; j <= b.length; j++) {
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        if (pp && i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) cur[j] = Math.min(cur[j], pp[j - 2] + 1);
+      }
+      pp = prev; prev = cur;
+    }
+    return prev[b.length] <= max;
+  }
+  function wordScore(q, w) {
+    if (w === q) return 4;
+    if (w.startsWith(q)) return 3;
+    if (q.length >= 3 && w.includes(q)) return 2;
+    if (q.length >= 4 && (near(q, w, q.length >= 7 ? 2 : 1) || near(q, w.slice(0, q.length), 1))) return 1.5;
+    return 0;
+  }
+  function searchScore(p, q) {
+    const qs = fold(q).split(' ').filter(Boolean); if (!qs.length) return 0;
+    const cat = ui.catalog && ui.catalog.categories.find((c) => c.id === p.cat);
+    const words = fold([p.en, p.ar, p.brand, cat && cat.en, cat && cat.ar].join(' ')).split(' ').filter(Boolean);
+    let total = 0, hits = 0;
+    qs.forEach((x) => { const best = Math.max(0, ...words.map((w) => wordScore(x, w))); if (best) hits++; total += best; });
+    // Every word should match; with three or more words, one may miss.
+    if (hits < qs.length - (qs.length >= 3 ? 1 : 0)) return 0;
+    return total + (fold(N(p)).startsWith(fold(q)) ? 2 : 0) - (p.stock <= 0 ? 0.5 : 0);
+  }
+  const searchList = (q) => (ui.catalog ? ui.catalog.products.map((p) => [p, searchScore(p, q)]).filter((x) => x[1] > 0).sort((a, b) => b[1] - a[1]).map((x) => x[0]) : []);
+  function suggestHtml() {
+    const q = (ui.typed || '').trim(); if (!q || !ui.catalog) return '';
+    let list = searchList(q).slice(0, 6);
+    // Fewer than four hits: fill up with other products from the best match's aisle.
+    if (list.length && list.length < 4) list = list.concat(ui.catalog.products.filter((p) => p.cat === list[0].cat && !list.includes(p) && p.stock > 0)).slice(0, 4);
+    if (!list.length) return `<div class="sug-empty">${t('No products match.')}</div>`;
+    return list.map((p) => `<button class="sug" data-a="sug" data-id="${p.id}">${I.search}<span>${esc(N(p))}</span><b class="num">${money(p.price)}</b></button>`).join('')
+      + `<button class="sug all" data-a="search-go">${t('See all results for “{q}”', { q: esc(q) })}</button>`;
+  }
+  function showSuggest() { const box = $('#suggest'); if (!box) return; const h = suggestHtml(); box.innerHTML = h; box.hidden = !h; }
+  function runSearch(q) {
+    ui.q = (q || '').trim(); ui.typed = ui.q; ui.cat = null;
+    const inp = $('[data-in="q"]'); if (inp) inp.blur();
+    if (route()[0] !== 'home') go('home'); else render();
+    const sec = $('.sec'); if (sec && ui.q) sec.scrollIntoView({ block: 'start' });
+  }
+
   // First launch with no connection and nothing saved: a full screen with a retry button.
   function viewOffline() {
     return `<div class="screen offline"><div class="off-ic">${I.wifiOff}</div><h1>${t('You are offline')}</h1>
@@ -193,16 +247,17 @@
     const a = currentAddress(), T = totals(), basketN = Object.keys(S.basket).length;
     const cats = C ? C.categories : [];
     const pages = []; for (let i = 0; i < cats.length; i += 4) pages.push(cats.slice(i, i + 4));
-    const q = ui.q.trim().toLowerCase();
-    let list = C ? C.products.slice() : [];
+    const q = ui.q.trim();
+    let list = q ? searchList(q) : C ? C.products.slice() : [];
     if (ui.cat) list = list.filter((p) => p.cat === ui.cat);
-    if (q) list = list.filter((p) => (p.en + ' ' + p.ar + ' ' + (p.brand || '')).toLowerCase().includes(q));
-    list.sort((x, y) => (x.stock <= 0) - (y.stock <= 0));
+    if (!q) list.sort((x, y) => (x.stock <= 0) - (y.stock <= 0));
+    // After a search, products from the same aisles as the matches, for "similar" items.
+    const related = q && list.length ? C.products.filter((p) => !list.includes(p) && p.stock > 0 && list.some((m) => m.cat === p.cat)).slice(0, 9) : [];
     const title = q ? `“${esc(ui.q.trim())}”` : ui.cat ? esc(N(cats.find((c) => c.id === ui.cat))) : t('All products');
     return `<div class="screen">
       <header class="hdr home">
         <div class="hdr-row">
-          <label class="search">${I.search}<span class="sr">Search products</span><input type="search" data-in="q" value="${esc(ui.q)}" placeholder="${esc(t('Search milk, حليب, rice…'))}" enterkeyhint="search"></label>
+          <label class="search">${I.search}<span class="sr">Search products</span><input type="search" data-in="q" value="${esc(ui.typed != null ? ui.typed : ui.q)}" placeholder="${esc(t('Search milk, حليب, rice…'))}" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false">${ui.q || ui.typed ? `<button class="sclear" data-a="search-clear" aria-label="${esc(t('Clear'))}">×</button>` : ''}<div class="suggest" id="suggest" role="listbox" hidden></div></label>
           <button class="gbtn" data-a="lang" aria-label="${isAr() ? 'English' : 'العربية'}">${isAr() ? '<span style="font-size:14px">EN</span>' : 'ع'}</button>
           <a class="gbtn" href="#/basket" aria-label="${t('Basket')}">${I.bag}${basketN ? `<span class="n">${basketN}</span>` : ''}</a>
         </div>
@@ -213,6 +268,7 @@
       <section class="sec">
         <div class="sec-h"><h1>${title}</h1><span>${t('Prices include VAT')}</span></div>
         ${!C ? `<div class="grid">${'<div class="pc skel"></div>'.repeat(6)}</div>` : list.length ? `<div class="grid">${list.map(card).join('')}</div>` : `<div class="empty">${t('No products match.')}</div>`}
+        ${related.length ? `<div class="sec-h" style="margin-top:20px"><h2>${t('Similar products')}</h2></div><div class="grid">${related.map(card).join('')}</div>` : ''}
       </section>
       ${basketN ? `<button class="basket-bar" data-a="go" data-to="basket"><span class="c">${T.lines.length}</span><span><small>${T.count === 1 ? t('1 item') : t('{n} items', { n: T.lines.length })}</small><b>${sar(T.subtotal)}</b></span><span class="go">${t('View basket')} ${I.arrow}</span></button>` : ''}
       ${nav('home')}
@@ -706,6 +762,9 @@
     'pd-sub': (el) => { const p = prod(el.dataset.id); ui.pdQty[p.id] = Math.max(stepOf(p), r2((ui.pdQty[p.id] || 1) - stepOf(p))); render(); },
     'pd-put': (el) => { const p = prod(el.dataset.id); setQty(p.id, (S.basket[p.id] || 0) + Number(el.dataset.n)); ui.pdQty[p.id] = 1; toast(t('Added to basket')); history.length > 1 ? history.back() : go('home'); },
     place: () => placeOrder(),
+    sug: (el) => { const b = $('#suggest'); if (b) b.hidden = true; const inp = $('[data-in="q"]'); if (inp) inp.blur(); go('product/' + encodeURIComponent(el.dataset.id)); },
+    'search-go': () => runSearch(ui.typed),
+    'search-clear': () => { ui.q = ''; ui.typed = ''; render(); },
     retry: async () => { ui.retrying = true; render(); await loadCatalog(); ui.retrying = false; render(); },
     signin: () => openSignin(route()[0] === 'orders' ? 'orders' : null),
     'signin-close': () => closeSignin(),
@@ -743,11 +802,18 @@
   });
   document.addEventListener('input', (ev) => {
     const el = ev.target;
-    if (el.dataset.in === 'q') { ui.q = el.value; render(); }
+    if (el.dataset.in === 'q') { ui.typed = el.value; if (!el.value.trim() && ui.q) { ui.q = ''; render(); $('[data-in="q"]').focus(); } else showSuggest(); }
     if (el.dataset.in === 'note') { S.note = el.value; persist(); }
     if (el.dataset.in === 'f') ui.form[el.dataset.f] = el.value;
     if (el.dataset.in === 'f-def') ui.form.def = el.checked;
   });
+  document.addEventListener('keydown', (ev) => {
+    if (ev.target.dataset && ev.target.dataset.in === 'q' && ev.key === 'Enter') { ev.preventDefault(); runSearch(ev.target.value); }
+  });
+  // Keep the search box focused while a suggestion is tapped.
+  document.addEventListener('pointerdown', (ev) => { if (ev.target.closest && ev.target.closest('#suggest')) ev.preventDefault(); });
+  document.addEventListener('focusin', (ev) => { if (ev.target.dataset && ev.target.dataset.in === 'q') showSuggest(); });
+  document.addEventListener('focusout', (ev) => { if (ev.target.dataset && ev.target.dataset.in === 'q') setTimeout(() => { const b = $('#suggest'); if (b && !b.contains(document.activeElement)) b.hidden = true; }, 150); });
   document.addEventListener('scroll', (ev) => {
     const el = ev.target; if (!el.dataset || el.dataset.scroll !== 'cats') return;
     const pg = Math.round(Math.abs(el.scrollLeft) / el.clientWidth); if (pg !== (ui.catPage || 0)) { ui.catPage = pg; document.querySelectorAll('.dots i').forEach((d, i) => d.classList.toggle('on', i === pg)); }
